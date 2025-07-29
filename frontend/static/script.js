@@ -256,7 +256,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         // Function to show the tracking URL (call this after successful form submission)
         function showTrackingUrl(siteId) {
-            const trackingUrl = `http://localhost:8001/tracking-script/${siteId}`;
+            const trackingUrl = `<script src="http://localhost:8001/tracking-script/${siteId}"></script>`;
             document.getElementById('trackingUrlText').value = trackingUrl;
             document.getElementById('trackingUrlContainer').style.display = 'block';
         }
