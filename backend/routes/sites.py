@@ -18,3 +18,13 @@ async def create_site(site: SiteCreate, db=Depends(get_db)):
     """
     result = await db.fetchrow(query, site.name, site.domain, site.owner)
     return dict(result)
+
+@router.get("/sites")
+async def get_sites(db=Depends(get_db)):
+    query = """
+        SELECT id, name, domain, owner, is_active, created_at
+        FROM sites
+        ORDER BY created_at DESC;
+    """
+    results = await db.fetch(query)
+    return [dict(result) for result in results]

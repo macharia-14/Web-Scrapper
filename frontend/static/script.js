@@ -14,6 +14,71 @@ async function fetchAnalytics(siteId) {
   }
 }
 
+async function fetchSites() {
+  try {
+    const response = await fetch(`http://localhost:8001/sites`);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const sites = await response.json();
+    displaySites(sites);
+  } catch (error) {
+    console.error("Failed to fetch sites:", error);
+    document.getElementById("sitesGrid").innerHTML = '<div class="error">Failed to load sites</div>';
+  }
+}
+
+function displaySites(sites) {
+  const sitesGrid = document.getElementById("sitesGrid");
+  
+  if (sites.length === 0) {
+    sitesGrid.innerHTML = '<div class="no-sites">No sites found. Create your first site!</div>';
+    return;
+  }
+  
+  sitesGrid.innerHTML = sites.map(site => `
+    <div class="site-card">
+      <div class="site-header">
+        <h3>${site.name}</h3>
+        <div class="site-status ${site.is_active ? 'active' : 'inactive'}">
+          <span class="status-dot"></span>
+          ${site.is_active ? 'Active' : 'Inactive'}
+        </div>
+      </div>
+      <div class="site-details">
+        <div class="detail-item">
+          <i class="fas fa-globe"></i>
+          <span>${site.domain}</span>
+        </div>
+        <div class="detail-item">
+          <i class="fas fa-user"></i>
+          <span>${site.owner}</span>
+        </div>
+        <div class="detail-item">
+          <i class="fas fa-calendar"></i>
+          <span>Created: ${new Date(site.created_at).toLocaleDateString()}</span>
+        </div>
+      </div>
+      <div class="site-actions">
+        <button class="btn btn-sm btn-primary" onclick="showTrackingUrl('${site.id}')">
+          <i class="fas fa-code"></i> Get Code
+        </button>
+        <button class="btn btn-sm btn-secondary" onclick="viewSiteAnalytics('${site.id}')">
+          <i class="fas fa-chart-bar"></i> Analytics
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function viewSiteAnalytics(siteId) {
+  // Switch to analytics page and load data for this specific site
+  const analyticsLink = document.querySelector('[data-page="analytics"]');
+  analyticsLink.click();
+  fetchAnalytics(siteId);
+}
+
+
 document.addEventListener("DOMContentLoaded", () => {
   // ========== 1. Sidebar Navigation ==========
   const navLinks = document.querySelectorAll(".nav-link");
@@ -44,6 +109,8 @@ document.addEventListener("DOMContentLoaded", () => {
       // Fetch analytics data when navigating to analytics page
       if (pageId === "analytics") {
         fetchAnalytics(siteId);
+      } else if (pageId === "sites") {
+        fetchSites();
       }
     });
   });
@@ -177,8 +244,12 @@ document.addEventListener("DOMContentLoaded", () => {
           const result = await res.json();
 
           if (res.ok) {
-            // Show the generated tracking script URL
+          // Show the generated tracking script URL
            showTrackingUrl(result.id);
+          // Refresh the sites list
+            fetchSites();
+          // Clear the form fields
+            document.getElementById("siteForm").reset();
           } else {
             alert("Error: " + result.detail);
           }
