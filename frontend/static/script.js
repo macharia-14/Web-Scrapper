@@ -66,6 +66,9 @@ function displaySites(sites) {
         <button class="btn btn-sm btn-secondary" onclick="viewSiteAnalytics('${site.id}')">
           <i class="fas fa-chart-bar"></i> Analytics
         </button>
+        <button class="btn btn-sm btn-danger" onclick="deleteSite('${site.id}', '${site.name}')">
+          <i class="fas fa-trash"></i> Delete
+        </button>
       </div>
     </div>
   `).join('');
@@ -319,3 +322,33 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         window.location.href = url;
     });
+
+
+  async function deleteSite(siteId, siteName) {
+  // Show confirmation dialog
+  if (!confirm(`Are you sure you want to delete "${siteName}"? This action cannot be undone.`)) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`http://localhost:8001/sites/${siteId}`, {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    // Show success message
+    showToast(`Site "${siteName}" deleted successfully!`, "success");
+    
+    // Refresh the sites list
+    fetchSites();
+    
+  } catch (error) {
+    console.error("Failed to delete site:", error);
+    showToast("Failed to delete site. Please try again.", "error");
+  }
+}
