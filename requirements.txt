@@ -1,0 +1,6 @@
+# For making HTTP requests
+requests==2.31.0
+# For parsing HTML and XML
+beautifulsoup4==4.12.3
+# A faster parser that can be used by BeautifulSoup
+lxml==5.2.1

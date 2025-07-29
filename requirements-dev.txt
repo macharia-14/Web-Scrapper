@@ -1,0 +1,9 @@
+# This file contains dependencies for development, such as testing and linting.
+# Install with: pip install -r requirements-dev.txt
+
+-r requirements.txt
+
+pytest==8.1.1 # For running tests
+flake8==7.0.0 # For linting and style checking
+black==24.4.2 # For code formatting
+uvicorn==0.29.0 # For running the ASGI server in development
