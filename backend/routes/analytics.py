@@ -170,3 +170,60 @@ async def get_analytics(
         raise HTTPException(status_code=500, detail=f"Failed to get analytics: {str(e)}")
     finally:
         await request.app.state.db.release(conn)
+
+
+@router.get("/analytics/{site_id}/realtime")
+async def get_realtime_analytics(site_id: str, request: Request):
+    conn = await request.app.state.db.acquire()
+
+    try:
+        real_time_threshold = datetime.utcnow() - timedelta(minutes=30)
+
+        # Active users (distinct user_id)
+        active_users_query = """
+            SELECT DISTINCT user_id
+            FROM events
+            WHERE site_id = $1 AND created_at >= $2
+        """
+        active_users_rows = await conn.fetch(active_users_query, site_id, real_time_threshold)
+        active_users = len(active_users_rows)
+
+        # Pageviews in last 30 minutes
+        pageviews_query = """
+            SELECT COUNT(*)
+            FROM events
+            WHERE site_id = $1 AND event_type = 'pageview' AND created_at >= $2
+        """
+        pageviews_row = await conn.fetchval(pageviews_query, site_id, real_time_threshold)
+        pageviews = pageviews_row or 0
+
+        # Button clicks in last 30 minutes
+        button_clicks_query = """
+            SELECT COUNT(*)
+            FROM events
+            WHERE site_id = $1 AND event_type = 'button_click' AND created_at >= $2
+        """
+        button_clicks_row = await conn.fetchval(button_clicks_query, site_id, real_time_threshold)
+        button_clicks = button_clicks_row or 0
+
+        # Errors in last 30 minutes
+        errors_query = """
+            SELECT COUNT(*)
+            FROM events
+            WHERE site_id = $1 AND event_type = 'javascript_error' AND created_at >= $2
+        """
+        errors_row = await conn.fetchval(errors_query, site_id, real_time_threshold)
+        errors = errors_row or 0
+
+        return {
+            "site_id": site_id,
+            "active_users": active_users,
+            "pageviews": pageviews,
+            "button_clicks": button_clicks,
+            "errors": errors
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get realtime analytics: {str(e)}")
+    finally:
+        await request.app.state.db.release(conn)

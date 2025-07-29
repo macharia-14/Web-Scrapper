@@ -40,3 +40,20 @@ async def delete_site(site_id: str, db=Depends(get_db)):
     if not result:
         raise HTTPException(status_code=404, detail="Site not found")
     return {"message": "Site deleted successfully", "id": site_id}
+
+@router.get("/sites/{site_id}", response_model=Site)
+async def get_site(site_id: str, db=Depends(get_db)):
+    """
+    Retrieve a specific site by its ID.
+    """
+    query = """
+        SELECT id, name, domain, owner, is_active, created_at
+        FROM sites
+        WHERE id = $1;
+    """
+    result = await db.fetchrow(query, site_id)
+
+    if not result:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    return dict(result)
