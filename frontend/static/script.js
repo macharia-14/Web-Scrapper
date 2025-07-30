@@ -1,4 +1,4 @@
-const siteId = "d33711b1-e17c499e-8705-37c21877d8b6";
+const siteId = "64af53e6-8cc6-4b85-b0f6-0bcc8e7d5848"; // Example site ID, replace with actual ID to be changed dynamically
 
 async function fetchAnalytics(siteId, startDate = null, endDate = null) {
   let url = `/analytics/${siteId}`;
