@@ -9,13 +9,19 @@ from backend.routes import sites, tracking, analytics, export
 
 app = FastAPI()
 
-# Allow CORS for all origins
+# Define allowed origins. 
+# In production, we'll list actual frontend domains.
+allowed_origins = [
+    "http://127.0.0.1:5501",  
+    "http://localhost:5501",   
+    # Add production frontend URL here, e.g., "https://your-website.com"
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-
     allow_headers=["*"],
 )
 
