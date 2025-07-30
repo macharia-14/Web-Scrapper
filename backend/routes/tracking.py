@@ -3,12 +3,23 @@ import json
 from uuid import uuid4
 from datetime import datetime
 import asyncpg
+import ipaddress
+import ipinfo
+import asyncio
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, JSONResponse
 
 
 router = APIRouter()
+
+# Initialize IPInfo client
+def get_ipinfo_client():
+    """Get IPInfo client with token from environment"""
+    ipinfo_token = os.environ.get('IPINFO_TOKEN')
+    if ipinfo_token:
+        return ipinfo.getHandler(ipinfo_token)
+    return None
 
 @router.get("/tracking-script/{site_id}")
 async def get_tracking_script(site_id: str):
@@ -190,19 +201,116 @@ async def get_tracking_script(site_id: str):
         }
     )
 
+async def get_location_data(ip_address: str):
+    """Get location data from IPInfo API using official library"""
+    try:
+        # Skip private/local IPs
+        ip_obj = ipaddress.ip_address(ip_address)
+        # For testing only — allow IP lookup even for localhost
+        # WARNING: This will give inaccurate results if the IP is local
+        # Remove or revert this when deploying!
+        # if ip_obj.is_private or ip_obj.is_loopback:
+        #     return None
+
+            
+        # Get IPInfo client
+        handler = get_ipinfo_client()
+        if not handler:
+            return None
+            
+        # The IPInfo library is synchronous, so we run it in a thread pool
+        def get_ip_details():
+            return handler.getDetails(ip_address)
+        
+        # Run in thread pool to avoid blocking
+        loop = asyncio.get_event_loop()
+        details = await loop.run_in_executor(None, get_ip_details)
+        
+        # Convert IPInfo Details object to dictionary
+        data = details.all  # .all gives all fields as a dict
+
+        return {
+            'ip': data.get("ip"),
+            'city': data.get("city"),
+            'region': data.get("region"),
+            'country': data.get("country"),
+            'country_name': data.get("country_name"),
+            'loc': data.get("loc"),
+            'org': data.get("org"),
+            'timezone': data.get("timezone"),
+            'postal': data.get("postal"),
+            'hostname': data.get("hostname"),
+            'asn': data.get("asn", {}).get("asn") if data.get("asn") else None,
+            'company': data.get("company", {}).get("name") if data.get("company") else None,
+            'carrier': data.get("carrier", {}).get("name") if data.get("carrier") else None,
+            'privacy': data.get("privacy", {}).get("vpn") if data.get("privacy") else None,
+            'abuse': data.get("abuse", {}).get("email") if data.get("abuse") else None,
+            'domains': data.get("domains", {}).get("total") if data.get("domains") else None
+        }
+
+        
+    except Exception as e:
+        print(f"IPInfo lookup failed: {e}")
+        return None
+
 @router.post("/api/track")
 async def track_event(request: Request):
     try:
         data = await request.json()
 
+        client_ip = request.headers.get("x-forwarded-for", request.client.host)
+        # print("📥 Incoming tracking data:")
+        print(json.dumps(data, indent=2))
+        # Get client IP
+        
+        # print(f"📍 Client IP: {client_ip}")
+        if "x-forwarded-for" in request.headers:
+            client_ip = request.headers["x-forwarded-for"].split(",")[0].strip()
+        elif "x-real-ip" in request.headers:
+            client_ip = request.headers["x-real-ip"]
+        
+        # Get location data using IPInfo
+        location_data = await get_location_data(client_ip)
+        print(f"IPInfo data for {client_ip}: {json.dumps(location_data, indent=2)}")
+
+
+        # Extract location data with defaults
+        ip_city = None
+        ip_region = None
+        ip_country = None
+        ip_timezone = None
+        ip_org = None
+        ip_latitude = None
+        ip_longitude = None
+        
+        if location_data:
+            ip_city = location_data.get("city")
+            ip_region = location_data.get("region")
+            ip_country = location_data.get("country")
+            ip_timezone = location_data.get("timezone")
+            ip_org = location_data.get("org")
+            
+            # Parse coordinates if available
+            loc = location_data.get("loc")
+            if loc and "," in loc:
+                try:
+                    lat, lng = loc.split(",")
+                    ip_latitude = float(lat.strip())
+                    ip_longitude = float(lng.strip())
+                except (ValueError, AttributeError):
+                    pass
+
+        # Database query with existing columns
         query = """
         INSERT INTO events (
             id, site_id, event_type, session_id, user_id, url, title,
-            referrer, user_agent, metadata, created_at
+            referrer, user_agent, metadata, created_at,
+            ip_address, ip_city, ip_region, ip_country, ip_timezone, 
+            ip_org, ip_latitude, ip_longitude
         )
         VALUES (
             $1, $2, $3, $4, $5, $6, $7,
-            $8, $9, $10, $11
+            $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
         )
         """
 
@@ -216,9 +324,20 @@ async def track_event(request: Request):
             data.get("title"),
             data.get("referrer"),
             data.get("user_agent"),
-            json.dumps(data.get("metadata", {})),  # safely handle JSON
-            datetime.utcnow()
+            json.dumps(data.get("metadata", {})),
+            datetime.utcnow(),
+            client_ip,
+            ip_city,
+            ip_region,
+            ip_country,
+            ip_timezone,
+            ip_org,
+            ip_latitude,
+            ip_longitude
         )
+
+        print("Values to insert:", values)
+
 
         async with request.app.state.db.acquire() as conn:
             await conn.execute(query, *values)
@@ -227,5 +346,3 @@ async def track_event(request: Request):
 
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Tracking error: {str(e)}")
-
-# Attach the router

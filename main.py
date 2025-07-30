@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -6,13 +7,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.database import connect_to_db, disconnect_from_db
 from backend.routes import sites, tracking, analytics, export
 
+load_dotenv()
 
 app = FastAPI()
 
 # Allow CORS for all origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://161.97.113.201"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
