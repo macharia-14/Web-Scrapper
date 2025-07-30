@@ -17,6 +17,7 @@ app.add_middleware(
     allow_origins=["http://161.97.113.201"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+
     allow_headers=["*"],
 )
 
@@ -37,11 +38,15 @@ app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 # Serve index.html from the root route
 @app.get("/")
 async def serve_index():
+    print("Root route called")  # Add this line
     file_path = "frontend/index.html"
     if os.path.exists(file_path):
         return FileResponse(file_path)
     else:
-        return {"error": "index.html not found"}
+        error_message = "index.html not found"
+        print(f"Error: {error_message}, Path: {file_path}")
+        return {"error": error_message}
+
 
 
 # For tracking preflight requests (CORS)

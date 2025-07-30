@@ -1,22 +1,56 @@
-const siteId = "aad28051-6dcb-4ce9-8ba5-ba8fc4f8b784";
+const siteId = "d33711b1-e17c499e-8705-37c21877d8b6";
 
-async function fetchAnalytics(siteId) {
+async function fetchAnalytics(siteId, startDate = null, endDate = null) {
+  let url = `/analytics/${siteId}`;
+  if (startDate && endDate) {
+    url += `?start_date=${startDate}&end_date=${endDate}`;
+  }
+
   try {
-    const response = await fetch(`http://localhost:8001/analytics/${siteId}`);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed to fetch analytics");
+    const data = await res.json();
+
+    // Safe update helper
+    const setIfExists = (id, value, suffix = '') => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = `${value}${suffix}`;
+    };
+
+    // General stats
+    setIfExists("totalPageviews", data.total_pageviews);
+    setIfExists("uniqueVisitors", data.unique_visitors);
+    setIfExists("totalSessions", data.total_sessions);
+    setIfExists("bounceRate", data.bounce_rate, '%');
+    setIfExists("avgSessionDuration", data.avg_session_duration); // if applicable
+    setIfExists("formSubmissions", data.form_submissions);
+    setIfExists("jsErrors", data.js_errors);
+    setIfExists("avgLoadTime", data.avg_load_time, 'ms');
+    setIfExists("buttonClicks", data.button_clicks);
+
+    // Pageview/visitor changes if calculated
+    setIfExists("pageviewChange", `+${data.pageview_change}%`);
+    setIfExists("visitorChange", `+${data.visitor_change}%`);
+
+    // Optional: update charts or top pages if implemented
+    if (window.updateReferrerChart && data.referrers) {
+      updateReferrerChart(data.referrers);
     }
-    const data = await response.json();
-    console.log("Analytics data:", data);
-    // TODO: Update the UI with analytics data
-  } catch (error) {
-    console.error("Failed to fetch analytics data:", error);
+    if (window.updateDeviceChart && data.devices) {
+      updateDeviceChart(data.devices);
+    }
+    if (window.updateTopPages && data.top_pages) {
+      updateTopPages(data.top_pages);
+    }
+
+  } catch (err) {
+    console.error("Failed to fetch analytics data:", err);
   }
 }
 
 async function fetchSites() {
   try {
-    const response = await fetch(`http://localhost:8001/sites`);
+    const response = await fetch(`/sites`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -149,15 +183,64 @@ document.addEventListener("DOMContentLoaded", () => {
   addAlertBtn?.addEventListener("click", () => addAlertForm.classList.remove("hidden"));
   cancelAlertBtn?.addEventListener("click", () => addAlertForm.classList.add("hidden"));
 
-  // ========== 5. Dummy Dynamic Values ==========
-  document.getElementById("activeUsers").innerText = "134";
-  document.getElementById("totalPageviews").innerText = "3,452";
-  document.getElementById("uniqueVisitors").innerText = "1,219";
-  document.getElementById("buttonClicks").innerText = "837";
+  
+document.addEventListener('DOMContentLoaded', () => {
+  const SITE_ID = 'your-site-id-here'; // Inject dynamically if needed
+  const API_BASE = 'http://localhost:8001';
 
-  document.getElementById("pageviewChange").innerText = "+8%";
-  document.getElementById("visitorChange").innerText = "+5%";
-  document.getElementById("clickChange").innerText = "+3%";
+  async function fetchAnalytics(startDate = null, endDate = null) {
+    let url = `${API_BASE}/analytics/${SITE_ID}`;
+    const params = [];
+
+    if (startDate) params.push(`start_date=${startDate}`);
+    if (endDate) params.push(`end_date=${endDate}`);
+    if (params.length) url += `?${params.join('&')}`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+    updateAnalyticsUI(data);
+  }
+
+  function updateAnalyticsUI(data) {
+    // Top Pages
+    const topPagesList = document.getElementById('topPagesList');
+    topPagesList.innerHTML = data.top_pages.map(p =>
+      `<div>${p.url} - ${p.views} views</div>`
+    ).join('');
+
+    // Referrer Chart (basic example)
+    const referrerChart = document.getElementById('referrerChart');
+    referrerChart.innerHTML = data.referrer_stats.map(r =>
+      `<div>${r.referrer}: ${r.count}</div>`
+    ).join('');
+
+    // Device Breakdown
+    const deviceChart = document.getElementById('deviceChart');
+    deviceChart.innerHTML = data.device_stats.map(d =>
+      `<div>${d.device}: ${d.count}</div>`
+    ).join('');
+
+    // Performance Metrics
+    document.getElementById('avgLoadTime').textContent = `${data.avg_load_time}ms`;
+    document.getElementById('formSubmissions').textContent = data.form_submissions;
+    document.getElementById('jsErrors').textContent = data.error_count;
+    document.getElementById('bounceRate').textContent = `${data.bounce_rate}%`;
+
+    // Heatmap and others – plug in charting libs as needed (e.g., Chart.js, Plotly, etc.)
+  }
+
+  // Hook to date picker
+  document.getElementById('applyDateRange').addEventListener('click', () => {
+    const start = document.getElementById('startDate').value;
+    const end = document.getElementById('endDate').value;
+    fetchAnalytics(start, end);
+  });
+
+  // Initial Load
+  fetchAnalytics();
+});
+
+
 
   // ========== 6. Dummy Chart.js Chart ==========
   const pageviewsChart = document.getElementById("pageviewsChart");
@@ -236,7 +319,7 @@ document.addEventListener("DOMContentLoaded", () => {
             owner: document.getElementById("siteOwner").value,
           };
 
-          const res = await fetch("http://localhost:8001/sites", {
+          const res = await fetch("/sites", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -259,7 +342,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         // Function to show the tracking URL (call this after successful form submission)
         function showTrackingUrl(siteId) {
-            const trackingUrl = `<script src="http://localhost:8001/tracking-script/${siteId}"></script>`;
+            const trackingUrl = `<script src="/tracking-script/${siteId}"></script>`;
             document.getElementById('trackingUrlText').value = trackingUrl;
             document.getElementById('trackingUrlContainer').style.display = 'block';
         }
@@ -331,7 +414,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   try {
-    const response = await fetch(`http://localhost:8001/sites/${siteId}`, {
+    const response = await fetch(`/sites/${siteId}`, {
       method: 'DELETE',
     });
 
