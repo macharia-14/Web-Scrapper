@@ -1054,3 +1054,226 @@ body{
     width: 100%;
   }
 }
+
+/* Performance Metrics Styles */
+.performance-metrics {
+  padding: 1rem;
+}
+
+.metric-row {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.metric-row:last-child {
+  margin-bottom: 0;
+}
+
+.metric-item {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  padding: 0.75rem;
+  background: rgba(59, 130, 246, 0.05);
+  border-radius: 8px;
+  border-left: 3px solid #3b82f6;
+}
+
+.metric-icon {
+  margin-right: 0.75rem;
+  color: #3b82f6;
+  font-size: 1.2rem;
+}
+
+.metric-content {
+  flex: 1;
+}
+
+.metric-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.metric-label {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* Top Pages List Styles */
+.top-pages-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.page-item {
+  display: flex;
+  justify-content: between;
+  align-items: center;
+  padding: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+  transition: background-color 0.2s;
+}
+
+.page-item:hover {
+  background-color: #f9fafb;
+}
+
+.page-item:last-child {
+  border-bottom: none;
+}
+
+.page-info {
+  flex: 1;
+}
+
+.page-url {
+  font-weight: 500;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.page-title {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+.page-stats {
+  text-align: right;
+}
+
+.page-views {
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+.page-change {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.page-change.positive {
+  color: #10b981;
+}
+
+.page-change.negative {
+  color: #ef4444;
+}
+
+/* Traffic Sources Styles */
+.traffic-sources {
+  padding: 1rem;
+}
+
+.source-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.source-item:last-child {
+  border-bottom: none;
+}
+
+.source-info {
+  display: flex;
+  align-items: center;
+}
+
+.source-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.source-direct { background: #3b82f6; color: white; }
+.source-search { background: #10b981; color: white; }
+.source-social { background: #8b5cf6; color: white; }
+.source-referral { background: #f59e0b; color: white; }
+
+.source-name {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.source-stats {
+  text-align: right;
+}
+
+.source-visitors {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.source-percentage {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* Geographic Distribution Styles */
+.geo-distribution {
+  padding: 1rem;
+}
+
+.country-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.country-item:last-child {
+  border-bottom: none;
+}
+
+.country-info {
+  display: flex;
+  align-items: center;
+}
+
+.country-flag {
+  font-size: 1.2rem;
+  margin-right: 0.5rem;
+}
+
+.country-name {
+  font-weight: 500;
+  color: #1f2937;
+}
+
+.country-visitors {
+  font-weight: 600;
+  color: #3b82f6;
+}
+
+/* Loading Placeholder */
+.loading-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  color: #6b7280;
+}
+
+.loading-placeholder i {
+  margin-right: 0.5rem;
+}
+
+/* Chart Actions */
+.chart-actions select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  background: white;
+}
