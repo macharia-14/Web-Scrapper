@@ -11,17 +11,17 @@ load_dotenv()
 
 app = FastAPI()
 
-# Define allowed origins. 
-# In production, we'll list actual frontend domains.
+# ✅ Define specific allowed origins for CORS
 allowed_origins = [
-    "http://127.0.0.1:5501",  
-    "http://localhost:5501",   
-    # Add production frontend URL here, e.g., "https://your-website.com"
+    "http://127.0.0.1:5501",
+    "http://localhost:5501",
+    # Add your production domain(s) here if needed
 ]
 
+# ✅ Use the correct CORS setup (no wildcard when using credentials)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
@@ -40,11 +40,10 @@ async def shutdown():
 # Mount the frontend static files (CSS, JS, etc.)
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 
-
 # Serve index.html from the root route
 @app.get("/")
 async def serve_index():
-    print("Root route called")  # Add this line
+    print("Root route called")
     file_path = "frontend/index.html"
     if os.path.exists(file_path):
         return FileResponse(file_path)
@@ -53,13 +52,10 @@ async def serve_index():
         print(f"Error: {error_message}, Path: {file_path}")
         return {"error": error_message}
 
-
-
-# For tracking preflight requests (CORS)
+# Handle CORS preflight request explicitly for /api/track if needed
 @app.options("/api/track")
 async def preflight_track(response: Response):
     return Response(status_code=204)
-
 
 # Include API routes
 app.include_router(sites.router)
