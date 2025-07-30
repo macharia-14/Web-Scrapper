@@ -1,4 +1,5 @@
 import os
+from dotenv import load_dotenv
 from fastapi import FastAPI, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -6,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.database import connect_to_db, disconnect_from_db
 from backend.routes import sites, tracking, analytics, export
 
+load_dotenv()
 
 app = FastAPI()
 
@@ -19,7 +21,7 @@ allowed_origins = [
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
