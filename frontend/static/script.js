@@ -25,12 +25,6 @@ async function fetchAnalytics(siteId, startDate = null, endDate = null) {
     if (!res.ok) throw new Error("Failed to fetch analytics");
     const data = await res.json();
 
-    // Safe update helper
-    const setIfExists = (id, value, suffix = '') => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = `${value}${suffix}`;
-    };
-
     // General stats
     setIfExists("totalPageviews", data.total_pageviews);
     setIfExists("uniqueVisitors", data.unique_visitors);
@@ -46,19 +40,159 @@ async function fetchAnalytics(siteId, startDate = null, endDate = null) {
     setIfExists("pageviewChange", `+${data.pageview_change}%`);
     setIfExists("visitorChange", `+${data.visitor_change}%`);
 
-    // Optional: update charts or top pages if implemented
-    if (window.updateReferrerChart && data.referrers) {
-      updateReferrerChart(data.referrers);
-    }
-    if (window.updateDeviceChart && data.devices) {
-      updateDeviceChart(data.devices);
-    }
-    if (window.updateTopPages && data.top_pages) {
-      updateTopPages(data.top_pages);
-    }
+    // Update analytics page components
+    updateReferrerChart(data.referrers);
+    updateDeviceChart(data.devices);
+    updateTopPages(data.top_pages);
+    updateBehavior(data); // Add user behavior updates
+    updatePerformance(data); // Add performance updates
 
   } catch (err) {
     console.error("Failed to fetch analytics data:", err);
+  }
+}
+
+function updateReferrerChart(referrers) {
+  const chartContainer = document.getElementById("referrerChart");
+  if (!chartContainer) return;
+
+  const referrerData = referrers || {};
+  const dataEntries = Object.entries(referrerData);
+
+  if (dataEntries.length === 0) {
+    chartContainer.innerHTML = "<p>No referrer data available.</p>";
+    return;
+  }
+
+  const sortedReferrers = dataEntries.sort(([, a], [, b]) => b - a).slice(0, 8);
+  const labels = sortedReferrers.map(([ref]) => ref);
+  const values = sortedReferrers.map(([, count]) => count);
+
+  const plotData = [{
+    y: labels,
+    x: values,
+    type: 'bar',
+    orientation: 'h', // Horizontal is better for potentially long referrer names
+    marker: { color: '#10b981' }
+  }];
+
+  const layout = {
+    margin: { t: 10, b: 40, l: 120, r: 20 },
+    yaxis: { automargin: true },
+    paper_bgcolor: 'transparent',
+    plot_bgcolor: 'transparent',
+    font: { color: '#a0aec0' }
+  };
+
+  Plotly.newPlot(chartContainer, plotData, layout, { responsive: true, displayModeBar: false });
+}
+
+function updateDeviceChart(devices) {
+  const chartContainer = document.getElementById("deviceChart");
+  if (!chartContainer) return;
+
+  const deviceData = devices || {};
+  const dataEntries = Object.entries(deviceData);
+
+  if (dataEntries.length === 0) {
+    chartContainer.innerHTML = "<p>No device data available.</p>";
+    return;
+  }
+
+  const labels = dataEntries.map(([device]) => device);
+  const values = dataEntries.map(([, count]) => count);
+
+  const plotData = [{ x: labels, y: values, type: 'bar', marker: { color: ['#3b82f6', '#ef4444', '#f97316'] } }];
+  const layout = {
+    margin: { t: 10, b: 40, l: 50, r: 20 },
+    yaxis: { title: 'Count' },
+    paper_bgcolor: 'transparent',
+    plot_bgcolor: 'transparent',
+    font: { color: '#a0aec0' }
+  };
+
+  Plotly.newPlot(chartContainer, plotData, layout, { responsive: true, displayModeBar: false });
+}
+
+function updateTopPages(pages) {
+  const chartContainer = document.getElementById("analyticsTopPagesChart");
+  if (!chartContainer) return;
+
+  const pageData = pages || [];
+
+  if (pageData.length === 0) {
+    chartContainer.innerHTML = "<p>No top pages data available.</p>";
+    return;
+  }
+
+  // Sort pages by views and take the top 10 for clarity
+  const sortedPages = pageData.sort((a, b) => b.views - a.views).slice(0, 10);
+
+  const paths = sortedPages.map(p => p.path);
+  const views = sortedPages.map(p => p.views);
+
+  const plotData = [{
+    x: paths,
+    y: views,
+    type: 'bar',
+    marker: { color: '#3b82f6' }
+  }];
+
+  const layout = {
+    margin: { t: 10, b: 120, l: 50, r: 20 }, // Adjust margin for labels
+    xaxis: { tickangle: -45 },
+    yaxis: { title: 'Views' },
+    paper_bgcolor: 'transparent',
+    plot_bgcolor: 'transparent',
+    font: { color: '#a0aec0' }
+  };
+
+  Plotly.newPlot(chartContainer, plotData, layout, { responsive: true, displayModeBar: false });
+}
+
+function updateBehavior(data) {
+  // 1. User Journey Visualization
+  const journeyContainer = document.getElementById("userJourneyViz");
+  if (journeyContainer) {
+    const journeys = data.user_journeys || [];
+    const content = journeys
+      .map(
+        (path, index) => `<div>Visitor ${index + 1}: ${path.join(" → ")}</div>`
+      )
+      .join("");
+    journeyContainer.innerHTML = content || "<div>No user journey data available.</div>";
+  }
+
+  // 2. Click Patterns (Heatmap data)
+  const clickPatternsContainer = document.getElementById("clickPatterns");
+  if (clickPatternsContainer) {
+    const patterns = data.click_patterns || {};
+    const content = Object.entries(patterns)
+      .map(([element, count]) => `<div>${element}: ${count} clicks</div>`)
+      .join("");
+    clickPatternsContainer.innerHTML = content || "<div>No click pattern data available.</div>";
+  }
+}
+
+function updatePerformance(data) {
+  const performanceData = data.performance || {};
+
+  // 1. Page Load Chart
+  const loadTimeChart = document.getElementById("loadTimeChart");
+  if (loadTimeChart) {
+    const loadData = performanceData.load_times || [];
+    loadTimeChart.innerHTML = loadData.length
+      ? `<ul>${loadData.map(item => `<li>${item.page}: ${item.time}ms</li>`).join('')}</ul>`
+      : "<p>No load time data available.</p>";
+  }
+
+  // 2. Error Chart
+  const errorChart = document.getElementById("errorChart");
+  if (errorChart) {
+    const errorData = performanceData.error_counts || {};
+    errorChart.innerHTML = Object.keys(errorData).length
+      ? `<ul>${Object.entries(errorData).map(([type, count]) => `<li>${type}: ${count}</li>`).join('')}</ul>`
+      : "<p>No error data available.</p>";
   }
 }
 
