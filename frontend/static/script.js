@@ -214,6 +214,29 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // ========== Time Range Dropdown Change Handler ==========
+document.getElementById('topPagesFilter')?.addEventListener('change', async (e) => {
+  const timeRange = e.target.value;
+  
+  if (currentSiteId) {
+    // Update the label in the Top Pages header
+    const label = document.getElementById('topPagesTimeLabel');
+    if (label) {
+      const labelText = timeRange === 'today' ? 'Today' : 
+                       timeRange === 'week' ? 'This Week' : 'This Month';
+      label.textContent = labelText;
+    }
+    
+    // Fetch analytics data for the selected time range
+    await updateDashboardWithTimeRange(timeRange);
+    showToast(`Updated to ${e.target.selectedOptions[0].textContent}`, 'success');
+  } else {
+    showToast('Please select a site first', 'warning');
+    // Reset dropdown to 'today' if no site selected
+    e.target.value = 'today';
+  }
+});
+
   // ========== 2. Analytics Tabs ==========
   const tabButtons = document.querySelectorAll(".tab-btn");
   const tabContents = document.querySelectorAll(".tab-content");
@@ -500,6 +523,21 @@ async function updateDashboardStats() {
   }
 }
 
+// NEW function to update dashboard with specific time range
+async function updateDashboardWithTimeRange(timeRange) {
+  if (!currentSiteId) return;
+  
+  try {
+    const response = await fetch(`/analytics/${currentSiteId}/realtime?time_range=${timeRange}`);
+    if (response.ok) {
+      const data = await response.json();
+      updateRealtimeStats(data);
+    }
+  } catch (error) {
+    console.error('Failed to fetch time range analytics:', error);
+  }
+}
+
 function updateRealtimeStats(data) {
   // Update the stat cards with real data
   setIfExists("activeUsers", data.active_users || 0);
@@ -678,9 +716,35 @@ function updateRealtimeStats(data) {
   setIfExists("jsErrors", data.js_errors || 0);
   setIfExists("formSubmissions", data.form_submissions || 0);
   
-  // Update new dashboard components
+  // Update new dashboard components with time range context
   updateDashboardComponents(data);
   
   // Update activity feed
   updateActivityFeed(data.recent_events || []);
+  
+  // Update chart headers based on current time range
+  updateChartHeaders(data.time_range || 'today');
+}
+
+// NEW function to update chart headers based on time range
+function updateChartHeaders(timeRange) {
+  const timeLabel = timeRange === 'today' ? 'Today' : 
+                   timeRange === 'week' ? 'This Week' : 'This Month';
+  
+  // Update Top Pages header
+  const topPagesLabel = document.getElementById('topPagesTimeLabel');
+  if (topPagesLabel) {
+    topPagesLabel.textContent = timeLabel;
+  }
+  
+  // Update other chart headers if they have dynamic labels
+  const trafficHeader = document.querySelector('#trafficSources .chart-header h3');
+  if (trafficHeader) {
+    trafficHeader.innerHTML = `<i class="fas fa-share-alt"></i> Traffic Sources (${timeLabel})`;
+  }
+  
+  const geoHeader = document.querySelector('#geoDistribution .chart-header h3');
+  if (geoHeader) {
+    geoHeader.innerHTML = `<i class="fas fa-globe-americas"></i> Geographic Distribution (${timeLabel})`;
+  }
 }
