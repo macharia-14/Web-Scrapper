@@ -123,30 +123,99 @@
           </div>
 
           <!--Charts Section-->
-          <div class="charts-grid">
-            <div class="chart-card">
-              <div class="chart-header">
-                <h3>Pageviews Over Time</h3>
-                <select id="chartTimeRange">
-                  <option value="7">Last 7 days</option>
-                  <option value="30">Last 30 days</option>
-                  <option value="90">Last 90 days</option>
-                </select>
-              </div>
-              <div class="chart-container">
-                <canvas id="pageviewsChart"></canvas>
-              </div>
+          <!-- REPLACE this entire charts-grid section -->
+        <div class="charts-grid">
+          <!-- Real-time Performance Metrics -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3><i class="fas fa-tachometer-alt"></i> Performance Overview</h3>
+              <span class="live-indicator">
+                <span class="pulse-dot"></span>
+                <span>Live</span>
+              </span>
             </div>
-
-            <div class="chart-card">
-              <div class="chart-header">
-                <h3>Top Pages</h3>
+            <div class="performance-metrics">
+              <div class="metric-row">
+                <div class="metric-item">
+                  <div class="metric-icon"><i class="fas fa-clock"></i></div>
+                  <div class="metric-content">
+                    <div class="metric-value" id="avgLoadTime">0ms</div>
+                    <div class="metric-label">Avg Load Time</div>
+                  </div>
+                </div>
+                <div class="metric-item">
+                  <div class="metric-icon"><i class="fas fa-percentage"></i></div>
+                  <div class="metric-content">
+                    <div class="metric-value" id="bounceRate">0%</div>
+                    <div class="metric-label">Bounce Rate</div>
+                  </div>
+                </div>
               </div>
-              <div class="chart-container">
-                <div id="topPagesChart"></div>
+              <div class="metric-row">
+                <div class="metric-item">
+                  <div class="metric-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                  <div class="metric-content">
+                    <div class="metric-value" id="jsErrors">0</div>
+                    <div class="metric-label">JS Errors</div>
+                  </div>
+                </div>
+                <div class="metric-item">
+                  <div class="metric-icon"><i class="fas fa-paper-plane"></i></div>
+                  <div class="metric-content">
+                    <div class="metric-value" id="formSubmissions">0</div>
+                    <div class="metric-label">Form Submissions</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+
+          <!-- Top Pages List -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3><i class="fas fa-list"></i> Top Pages Today</h3>
+              <div class="chart-actions">
+                <select id="topPagesFilter">
+                  <option value="today">Today</option>
+                  <option value="week">This Week</option>
+                  <option value="month">This Month</option>
+                </select>
+              </div>
+            </div>
+            <div class="top-pages-list" id="topPagesList">
+              <div class="loading-placeholder">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Loading pages...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Traffic Sources -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3><i class="fas fa-share-alt"></i> Traffic Sources</h3>
+            </div>
+            <div class="traffic-sources" id="trafficSources">
+              <div class="loading-placeholder">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Loading sources...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Geographic Distribution -->
+          <div class="chart-card">
+            <div class="chart-header">
+              <h3><i class="fas fa-globe-americas"></i> Geographic Distribution</h3>
+            </div>
+            <div class="geo-distribution" id="geoDistribution">
+              <div class="loading-placeholder">
+                <i class="fas fa-spinner fa-spin"></i>
+                <span>Loading locations...</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
           <!--Recent Activity-->
           <div class="Activity-section">

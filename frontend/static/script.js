@@ -1,7 +1,21 @@
-const siteId = "d33711b1-e17c499e-8705-37c21877d8b6";
+let currentSiteId = null; // Will be set when user selects a site
+
+// ✅ Define globally so all functions can use it
+function setIfExists(id, value, suffix = '') {
+  const el = document.getElementById(id);
+  if (el) el.textContent = `${value}${suffix}`;
+}
+
 
 async function fetchAnalytics(siteId, startDate = null, endDate = null) {
-  let url = `/analytics/${siteId}`;
+  const targetSiteId = siteId || currentSiteId;
+  if (!targetSiteId) {
+    console.warn('No site selected for analytics');
+    return;
+  }
+  
+
+  let url = `/analytics/${targetSiteId}`;
   if (startDate && endDate) {
     url += `?start_date=${startDate}&end_date=${endDate}`;
   }
@@ -108,6 +122,39 @@ function displaySites(sites) {
   `).join('');
 }
 
+// ADD this function after the displaySites function:
+async function populateSiteDropdown() {
+  try {
+    const response = await fetch('/sites');
+    if (!response.ok) throw new Error('Failed to fetch sites');
+    
+    const sites = await response.json();
+    const siteSelect = document.getElementById('siteSelect');
+    
+    // Clear existing options except the first one
+    siteSelect.innerHTML = '<option value="">Select a site...</option>';
+    
+    // Add sites to dropdown
+    sites.forEach(site => {
+      const option = document.createElement('option');
+      option.value = site.id;
+      option.textContent = `${site.name} (${site.domain})`;
+      siteSelect.appendChild(option);
+    });
+    
+    // If there's only one site, auto-select it
+    if (sites.length === 1) {
+      siteSelect.value = sites[0].id;
+      currentSiteId = sites[0].id;
+      await fetchAnalytics(currentSiteId);
+      updateDashboardStats();
+    }
+    
+  } catch (error) {
+    console.error('Failed to populate site dropdown:', error);
+  }
+}
+
 function viewSiteAnalytics(siteId) {
   // Switch to analytics page and load data for this specific site
   const analyticsLink = document.querySelector('[data-page="analytics"]');
@@ -124,7 +171,6 @@ document.addEventListener("DOMContentLoaded", () => {
   navLinks.forEach((link) => {
     link.addEventListener("click", (e) => {
       e.preventDefault();
-      console.log("Navigation link clicked:", link);
 
       // Remove active class from all links
       navLinks.forEach((l) => l.classList.remove("active"));
@@ -135,7 +181,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       // Show the selected page
       const pageId = link.getAttribute("data-page");
-      console.log("Showing page:", pageId);
+      
       const pageElement = document.getElementById(pageId);
       if (pageElement) {
         pageElement.classList.add("active");
@@ -144,12 +190,28 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       // Fetch analytics data when navigating to analytics page
-      if (pageId === "analytics") {
-        fetchAnalytics(siteId);
+      if (pageId === "analytics" && currentSiteId) {
+        fetchAnalytics(currentSiteId);
       } else if (pageId === "sites") {
         fetchSites();
+      } else if (pageId === "dashboard" && currentSiteId) {
+        updateDashboardStats();
       }
     });
+  });
+
+  // ========== Site Dropdown Change Handler ==========
+  document.getElementById('siteSelect')?.addEventListener('change', async (e) => {
+    currentSiteId = e.target.value;
+    
+    if (currentSiteId) {
+      showToast(`Switched to ${e.target.selectedOptions[0].textContent}`, 'success');
+      await fetchAnalytics(currentSiteId);
+      await updateDashboardStats();
+    } else {
+      // Clear dashboard when no site selected
+      clearDashboardData();
+    }
   });
 
   // ========== 2. Analytics Tabs ==========
@@ -183,117 +245,62 @@ document.addEventListener("DOMContentLoaded", () => {
   addAlertBtn?.addEventListener("click", () => addAlertForm.classList.remove("hidden"));
   cancelAlertBtn?.addEventListener("click", () => addAlertForm.classList.add("hidden"));
 
-  
-document.addEventListener('DOMContentLoaded', () => {
-  const SITE_ID = 'your-site-id-here'; // Inject dynamically if needed
-  const API_BASE = 'http://localhost:8001';
+  // ========== 5. Chart.js Chart ==========
+  // const pageviewsChart = document.getElementById("pageviewsChart");
+  // if (pageviewsChart) {
+  //   new Chart(pageviewsChart, {
+  //     type: "line",
+  //     data: {
+  //       labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+  //       datasets: [{
+  //         label: "Pageviews",
+  //         data: [230, 280, 350, 420, 390, 500, 600],
+  //         borderColor: "#3b82f6",
+  //         fill: true,
+  //         backgroundColor: "rgba(59, 130, 246, 0.1)",
+  //         tension: 0.3
+  //       }]
+  //     },
+  //     options: {
+  //       responsive: true,
+  //       plugins: {
+  //         legend: {
+  //           display: false
+  //         }
+  //       }
+  //     }
+  //   });
+  // }
 
-  async function fetchAnalytics(startDate = null, endDate = null) {
-    let url = `${API_BASE}/analytics/${SITE_ID}`;
-    const params = [];
+  // // ========== 6. Plotly Bar Chart ==========
+  // const topPagesChart = document.getElementById("topPagesChart");
+  // if (topPagesChart) {
+  //   Plotly.newPlot("topPagesChart", [{
+  //     x: ["Home", "Blog", "Shop", "Contact"],
+  //     y: [1200, 800, 600, 300],
+  //     type: "bar",
+  //     marker: { color: "#3b82f6" }
+  //   }], {
+  //     margin: { t: 30 },
+  //     title: "Top Pages"
+  //   });
+  // }
 
-    if (startDate) params.push(`start_date=${startDate}`);
-    if (endDate) params.push(`end_date=${endDate}`);
-    if (params.length) url += `?${params.join('&')}`;
-
-    const res = await fetch(url);
-    const data = await res.json();
-    updateAnalyticsUI(data);
-  }
-
-  function updateAnalyticsUI(data) {
-    // Top Pages
-    const topPagesList = document.getElementById('topPagesList');
-    topPagesList.innerHTML = data.top_pages.map(p =>
-      `<div>${p.url} - ${p.views} views</div>`
-    ).join('');
-
-    // Referrer Chart (basic example)
-    const referrerChart = document.getElementById('referrerChart');
-    referrerChart.innerHTML = data.referrer_stats.map(r =>
-      `<div>${r.referrer}: ${r.count}</div>`
-    ).join('');
-
-    // Device Breakdown
-    const deviceChart = document.getElementById('deviceChart');
-    deviceChart.innerHTML = data.device_stats.map(d =>
-      `<div>${d.device}: ${d.count}</div>`
-    ).join('');
-
-    // Performance Metrics
-    document.getElementById('avgLoadTime').textContent = `${data.avg_load_time}ms`;
-    document.getElementById('formSubmissions').textContent = data.form_submissions;
-    document.getElementById('jsErrors').textContent = data.error_count;
-    document.getElementById('bounceRate').textContent = `${data.bounce_rate}%`;
-
-    // Heatmap and others – plug in charting libs as needed (e.g., Chart.js, Plotly, etc.)
-  }
-
-  // Hook to date picker
-  document.getElementById('applyDateRange').addEventListener('click', () => {
-    const start = document.getElementById('startDate').value;
-    const end = document.getElementById('endDate').value;
-    fetchAnalytics(start, end);
-  });
-
-  // Initial Load
-  fetchAnalytics();
-});
-
-
-
-  // ========== 6. Dummy Chart.js Chart ==========
-  const pageviewsChart = document.getElementById("pageviewsChart");
-  if (pageviewsChart) {
-    new Chart(pageviewsChart, {
-      type: "line",
-      data: {
-        labels: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-        datasets: [{
-          label: "Pageviews",
-          data: [230, 280, 350, 420, 390, 500, 600],
-          borderColor: "#3b82f6",
-          fill: true,
-          backgroundColor: "rgba(59, 130, 246, 0.1)",
-          tension: 0.3
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            display: false
-          }
-        }
-      }
-    });
-  }
-
-  // ========== 7. Dummy Plotly Bar Chart ==========
-  const topPagesChart = document.getElementById("topPagesChart");
-  if (topPagesChart) {
-    Plotly.newPlot("topPagesChart", [{
-      x: ["Home", "Blog", "Shop", "Contact"],
-      y: [1200, 800, 600, 300],
-      type: "bar",
-      marker: { color: "#3b82f6" }
-    }], {
-      margin: { t: 30 },
-      title: "Top Pages"
-    });
-  }
-
-  // ========== 8. Optional: Toast Notification Placeholder ==========
-  // showToast("Dashboard loaded successfully!", "success");
-
-  // ========== 9. Refresh Button ==========
+  // ========== 7. Refresh Button ==========
   document.getElementById("refreshBtn")?.addEventListener("click", () => {
-    showToast("Data refreshed!", "info");
+    if (currentSiteId) {
+      updateDashboardStats();
+      showToast("Data refreshed!", "success");
+    } else {
+      showToast("Please select a site first", "warning");
+    }
   });
 
-  // ========== 10. Toast Function ==========
+  // ========== 8. Toast Function ==========
   function showToast(message, type = "info") {
     const container = document.getElementById("toastContainer");
+    if (!container) return;
+    
     const toast = document.createElement("div");
     toast.className = `toast ${type}`;
     toast.innerHTML = `
@@ -306,7 +313,31 @@ document.addEventListener('DOMContentLoaded', () => {
     container.appendChild(toast);
     setTimeout(() => toast.remove(), 4000);
   }
+
+  // ========== 9. Initialize Dashboard ==========
+  console.log('🚀 Initializing dashboard...');
+  populateSiteDropdown();
+
+  // Add this at the end of DOMContentLoaded
+  setTimeout(initializeDateRangePicker, 100);
 });
+
+// ADD this outside the DOMContentLoaded listener
+function initializeDateRangePicker() {
+  const applyButton = document.getElementById('applyDateRange');
+  if (applyButton) {
+    applyButton.addEventListener('click', () => {
+      if (!currentSiteId) {
+        showToast('Please select a site first', 'warning');
+        return;
+      }
+      
+      const start = document.getElementById('startDate').value;
+      const end = document.getElementById('endDate').value;
+      fetchAnalytics(currentSiteId, start, end);
+    });
+  }
+}
 
       document
         .getElementById("siteForm")
@@ -334,8 +365,12 @@ document.addEventListener('DOMContentLoaded', () => {
            showTrackingUrl(result.id);
           // Refresh the sites list
             fetchSites();
+          // Refresh the dropdown
+          populateSiteDropdown();
           // Clear the form fields
             document.getElementById("siteForm").reset();
+          // Show success message
+            showToast(`Site "${data.name}" created successfully!`, 'success');
           } else {
             alert("Error: " + result.detail);
           }
@@ -383,27 +418,38 @@ document.addEventListener('DOMContentLoaded', () => {
           showTrackingUrl(result.id);
         }
 
-  //Export feature
-    document.getElementById('exportCsv').addEventListener('click', () => {
-        const startDate = document.getElementById('csvStartDate').value;
-        const endDate = document.getElementById('csvEndDate').value;
 
-        let url = `/analytics/${siteId}/export/csv`;
-        if (startDate || endDate) {
-            url += `?start_date=${startDate}&end_date=${endDate}`;
-        }
-        window.location.href = url;
+    //Export feature
+    document.getElementById('exportCsv').addEventListener('click', () => {
+      if (!currentSiteId) {
+        showToast('Please select a site first', 'error');
+        return;
+      }
+      
+      const startDate = document.getElementById('csvStartDate').value;
+      const endDate = document.getElementById('csvEndDate').value;
+
+      let url = `/analytics/${currentSiteId}/export/csv`;
+      if (startDate || endDate) {
+        url += `?start_date=${startDate}&end_date=${endDate}`;
+      }
+      window.location.href = url;
     });
 
     document.getElementById('exportPdf').addEventListener('click', () => {
-        const startDate = document.getElementById('pdfStartDate').value;
-        const endDate = document.getElementById('pdfEndDate').value;
+      if (!currentSiteId) {
+        showToast('Please select a site first', 'error');
+        return;
+      }
+      
+      const startDate = document.getElementById('pdfStartDate').value;
+      const endDate = document.getElementById('pdfEndDate').value;
 
-        let url = `/analytics/${siteId}/export/pdf`;
-        if (startDate || endDate) {
-            url += `?start_date=${startDate}&end_date=${endDate}`;
-        }
-        window.location.href = url;
+      let url = `/analytics/${currentSiteId}/export/pdf`;
+      if (startDate || endDate) {
+        url += `?start_date=${startDate}&end_date=${endDate}`;
+      }
+      window.location.href = url;
     });
 
 
@@ -434,4 +480,207 @@ document.addEventListener('DOMContentLoaded', () => {
     console.error("Failed to delete site:", error);
     showToast("Failed to delete site. Please try again.", "error");
   }
+}
+
+
+
+// ADD these new functions:
+async function updateDashboardStats() {
+  if (!currentSiteId) return;
+  
+  try {
+    // Fetch real-time stats
+    const response = await fetch(`/analytics/${currentSiteId}/realtime`);
+    if (response.ok) {
+      const data = await response.json();
+      updateRealtimeStats(data);
+    }
+  } catch (error) {
+    console.error('Failed to fetch realtime stats:', error);
+  }
+}
+
+function updateRealtimeStats(data) {
+  // Update the stat cards with real data
+  setIfExists("activeUsers", data.active_users || 0);
+  setIfExists("totalPageviews", data.total_pageviews || 0);
+  setIfExists("uniqueVisitors", data.unique_visitors || 0);
+  setIfExists("buttonClicks", data.button_clicks || 0);
+  
+  // Update activity feed
+  updateActivityFeed(data.recent_events || []);
+}
+
+function updateActivityFeed(events) {
+  const activityFeed = document.getElementById('activityFeed');
+  if (!activityFeed || !events.length) return;
+  
+  activityFeed.innerHTML = events.slice(0, 10).map(event => `
+    <div class="activity-item">
+      <div class="activity-dot"></div>
+      <div class="activity-content">
+        <div class="activity-text">${event.description}</div>
+        <div class="activity-time">${formatTimeAgo(event.created_at)}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function clearDashboardData() {
+  // Clear all stats
+  ['activeUsers', 'totalPageviews', 'uniqueVisitors', 'buttonClicks'].forEach(id => {
+    setIfExists(id, 0);
+  });
+  
+  // Clear activity feed
+  const activityFeed = document.getElementById('activityFeed');
+  if (activityFeed) {
+    activityFeed.innerHTML = `
+      <div class="activity-item">
+        <div class="activity-dot"></div>
+        <div class="activity-content">
+          <div class="activity-text">Select a site to view activity...</div>
+          <div class="activity-time">Now</div>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function formatTimeAgo(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now - date) / 1000);
+  
+  if (diffInSeconds < 60) return 'Just now';
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+  return `${Math.floor(diffInSeconds / 86400)}d ago`;
+}
+
+// ADD these functions to handle the new dashboard components
+
+function updateDashboardComponents(data) {
+  // Update performance metrics (these are already handled by setIfExists)
+  
+  // Update top pages
+  updateTopPagesList(data.top_pages || []);
+  
+  // Update traffic sources
+  updateTrafficSources(data.traffic_sources || []);
+  
+  // Update geographic distribution
+  updateGeoDistribution(data.geo_distribution || []);
+}
+
+function updateTopPagesList(pages) {
+  const container = document.getElementById('topPagesList');
+  if (!container) return;
+  
+  if (pages.length === 0) {
+    container.innerHTML = '<div class="loading-placeholder"><span>No page data available</span></div>';
+    return;
+  }
+  
+  container.innerHTML = pages.slice(0, 10).map(page => `
+    <div class="page-item">
+      <div class="page-info">
+        <div class="page-url">${page.url || 'Unknown'}</div>
+        <div class="page-title">${page.title || 'No title'}</div>
+      </div>
+      <div class="page-stats">
+        <div class="page-views">${page.views || 0}</div>
+        <div class="page-change ${(page.change || 0) >= 0 ? 'positive' : 'negative'}">
+          ${(page.change || 0) >= 0 ? '+' : ''}${page.change || 0}%
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateTrafficSources(sources) {
+  const container = document.getElementById('trafficSources');
+  if (!container) return;
+  
+  if (sources.length === 0) {
+    container.innerHTML = '<div class="loading-placeholder"><span>No traffic data available</span></div>';
+    return;
+  }
+  
+  const getSourceIcon = (source) => {
+    const name = source.name.toLowerCase();
+    if (name.includes('direct')) return { class: 'source-direct', icon: 'fas fa-arrow-right' };
+    if (name.includes('google') || name.includes('search')) return { class: 'source-search', icon: 'fas fa-search' };
+    if (name.includes('social') || name.includes('facebook') || name.includes('twitter')) return { class: 'source-social', icon: 'fas fa-share-alt' };
+    return { class: 'source-referral', icon: 'fas fa-external-link-alt' };
+  };
+  
+  container.innerHTML = sources.slice(0, 8).map(source => {
+    const iconInfo = getSourceIcon(source);
+    return `
+      <div class="source-item">
+        <div class="source-info">
+          <div class="source-icon ${iconInfo.class}">
+            <i class="${iconInfo.icon}"></i>
+          </div>
+          <div class="source-name">${source.name || 'Unknown'}</div>
+        </div>
+        <div class="source-stats">
+          <div class="source-visitors">${source.visitors || 0}</div>
+          <div class="source-percentage">${source.percentage || 0}%</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function updateGeoDistribution(countries) {
+  const container = document.getElementById('geoDistribution');
+  if (!container) return;
+  
+  if (countries.length === 0) {
+    container.innerHTML = '<div class="loading-placeholder"><span>No location data available</span></div>';
+    return;
+  }
+  
+  const getCountryFlag = (countryCode) => {
+    // Simple flag emoji mapping - you can expand this
+    const flags = {
+      'US': '🇺🇸', 'GB': '🇬🇧', 'CA': '🇨🇦', 'DE': '🇩🇪', 'FR': '🇫🇷',
+      'IT': '🇮🇹', 'ES': '🇪🇸', 'JP': '🇯🇵', 'AU': '🇦🇺', 'BR': '🇧🇷',
+      'IN': '🇮🇳', 'CN': '🇨🇳', 'RU': '🇷🇺', 'KE': '🇰🇪', 'NG': '🇳🇬'
+    };
+    return flags[countryCode] || '🌐';
+  };
+  
+  container.innerHTML = countries.slice(0, 10).map(country => `
+    <div class="country-item">
+      <div class="country-info">
+        <span class="country-flag">${getCountryFlag(country.code)}</span>
+        <span class="country-name">${country.name || 'Unknown'}</span>
+      </div>
+      <div class="country-visitors">${country.visitors || 0}</div>
+    </div>
+  `).join('');
+}
+
+// UPDATE the updateRealtimeStats function to include new components
+function updateRealtimeStats(data) {
+  // Update the stat cards with real data
+  setIfExists("activeUsers", data.active_users || 0);
+  setIfExists("totalPageviews", data.total_pageviews || 0);
+  setIfExists("uniqueVisitors", data.unique_visitors || 0);
+  setIfExists("buttonClicks", data.button_clicks || 0);
+  
+  // Update performance metrics
+  setIfExists("avgLoadTime", data.avg_load_time || 0, 'ms');
+  setIfExists("bounceRate", data.bounce_rate || 0, '%');
+  setIfExists("jsErrors", data.js_errors || 0);
+  setIfExists("formSubmissions", data.form_submissions || 0);
+  
+  // Update new dashboard components
+  updateDashboardComponents(data);
+  
+  // Update activity feed
+  updateActivityFeed(data.recent_events || []);
 }
