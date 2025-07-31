@@ -145,7 +145,7 @@ The project is designed as a web scraper and user behavior tracking system that 
 
   - **Analytics:**  
     Offers advanced analytics with tabs for Overview, User Behavior, Performance, and Heatmap.  
-    **Status:** Basic data fetching is implemented; some charts and visualizations may be placeholders or incomplete.  
+    **Status:** Basic data fetching is implemented; some charts and visualizations are placeholders/ incomplete.  
     **Suggestions:** Chart implementations should be completed and filtering/pagination added.
 
   - **Realtime:**  
@@ -156,11 +156,11 @@ The project is designed as a web scraper and user behavior tracking system that 
   - **Alerts:**  
     Provides alert management with an add alert form, active alerts list, and recent notifications.  
     **Status:** UI is present but backend alert management is incomplete.  
-    **Suggestions:** Full alert CRUD and notification delivery should be implemented.
+    **Suggestions:** Full alert CRUD and notification delivery could be implemented.
 
   - **Export:**  
     Enables export of analytics data as CSV or PDF reports with date range selection.  
-    **Status:** UI is present; backend export functionality has not been fully reviewed.  
+    **Status:** UI is present; backend export functionality working but needs to be reviewed further.  
     **Suggestions:** Export endpoints should be implemented and tested.
 
 - **Not Done / Incomplete:**  
@@ -169,7 +169,7 @@ The project is designed as a web scraper and user behavior tracking system that 
   - No frontend framework is used; manual DOM manipulation is employed.
 
 - **Suggestions:**  
-  - A frontend framework (React, Vue, etc.) could be used for better user experience.  
+  - Improve user experience.  
   - User login and role-based access control should be added.  
   - Frontend code structure and error handling should be improved.
 
@@ -179,7 +179,7 @@ The project is designed as a web scraper and user behavior tracking system that 
 
 ### 7. Leads Generation Functionality
 - **Implemented:**  
-  - No explicit leads generation feature or API has been found in the current codebase.
+  - No explicit leads generation feature or API found in the current codebase.
 
 - **Working:**  
   - Tracking and analytics features could be leveraged for lead generation insights.
