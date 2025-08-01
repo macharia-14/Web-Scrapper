@@ -1,4 +1,6 @@
 let currentSiteId = null; // Will be set when user selects a site
+let heatmapInstance = null; // Define globally, initialize when needed
+let scrollmapInstance = null; // For the scrollmap
 
 // ✅ Define globally so all functions can use it
 function setIfExists(id, value, suffix = '') {
@@ -23,7 +25,11 @@ async function fetchAnalytics(siteId, startDate = null, endDate = null) {
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to fetch analytics");
-    const data = await res.json();
+    const rawData = await res.json();
+
+    // The backend might be wrapping the response in a parent object (e.g., "analytics").
+    // This change unwraps it, falling back to the original object if the key doesn't exist.
+    const data = rawData.analytics || rawData;
 
     // General stats
     setIfExists("totalPageviews", data.total_pageviews);
@@ -40,11 +46,17 @@ async function fetchAnalytics(siteId, startDate = null, endDate = null) {
     setIfExists("pageviewChange", `+${data.pageview_change}%`);
     setIfExists("visitorChange", `+${data.visitor_change}%`);
 
+    // Update performance metrics on the Analytics page specifically, using their unique IDs.
+    setIfExists("analytics-avgLoadTime", data.avg_load_time, 'ms');
+    setIfExists("analytics-formSubmissions", data.form_submissions);
+    setIfExists("analytics-jsErrors", data.js_errors);
+    setIfExists("analytics-bounceRate", data.bounce_rate, '%');
+
     // Update analytics page components
-    updateReferrerChart(data.referrers);
-    updateDeviceChart(data.devices);
+    updateReferrerChart(data.referrer_stats);
+    updateDeviceChart(data.device_stats);
     updateTopPages(data.top_pages);
-    updateBehavior(data); // Add user behavior updates
+    updateBehavior(data);
     updatePerformance(data); // Add performance updates
 
   } catch (err) {
@@ -56,17 +68,17 @@ function updateReferrerChart(referrers) {
   const chartContainer = document.getElementById("referrerChart");
   if (!chartContainer) return;
 
-  const referrerData = referrers || {};
-  const dataEntries = Object.entries(referrerData);
+  const referrerData = referrers || [];
 
-  if (dataEntries.length === 0) {
+  if (referrerData.length === 0) {
     chartContainer.innerHTML = "<p>No referrer data available.</p>";
     return;
   }
 
-  const sortedReferrers = dataEntries.sort(([, a], [, b]) => b - a).slice(0, 8);
-  const labels = sortedReferrers.map(([ref]) => ref);
-  const values = sortedReferrers.map(([, count]) => count);
+  // Data is already sorted by backend, but we can re-sort just in case and slice
+  const topReferrers = referrerData.sort((a, b) => b.count - a.count).slice(0, 8);
+  const labels = topReferrers.map(item => item.referrer);
+  const values = topReferrers.map(item => item.count);
 
   const plotData = [{
     y: labels,
@@ -91,16 +103,15 @@ function updateDeviceChart(devices) {
   const chartContainer = document.getElementById("deviceChart");
   if (!chartContainer) return;
 
-  const deviceData = devices || {};
-  const dataEntries = Object.entries(deviceData);
+  const deviceData = devices || [];
 
-  if (dataEntries.length === 0) {
+  if (deviceData.length === 0) {
     chartContainer.innerHTML = "<p>No device data available.</p>";
     return;
   }
 
-  const labels = dataEntries.map(([device]) => device);
-  const values = dataEntries.map(([, count]) => count);
+  const labels = deviceData.map(item => item.device);
+  const values = deviceData.map(item => item.count);
 
   const plotData = [{ x: labels, y: values, type: 'bar', marker: { color: ['#3b82f6', '#ef4444', '#f97316'] } }];
   const layout = {
@@ -128,7 +139,13 @@ function updateTopPages(pages) {
   // Sort pages by views and take the top 10 for clarity
   const sortedPages = pageData.sort((a, b) => b.views - a.views).slice(0, 10);
 
-  const paths = sortedPages.map(p => p.path);
+  const paths = sortedPages.map(p => {
+    try {
+      return new URL(p.url).pathname; // Use pathname for cleaner labels
+    } catch (e) {
+      return p.url;
+    }
+  });
   const views = sortedPages.map(p => p.views);
 
   const plotData = [{
@@ -151,48 +168,257 @@ function updateTopPages(pages) {
 }
 
 function updateBehavior(data) {
+  // Data for this section is likely nested under a "behavior" key, similar to "performance".
+  const behaviorData = data.behavior || {};
   // 1. User Journey Visualization
   const journeyContainer = document.getElementById("userJourneyViz");
   if (journeyContainer) {
-    const journeys = data.user_journeys || [];
+    // Correct key to singular 'user_journey' and check both the nested 'behavior' object
+    // and the top-level data object to ensure the data is found.
+    const journeys = behaviorData.user_journey || data.user_journey || [];
     const content = journeys
-      .map(
-        (path, index) => `<div>Visitor ${index + 1}: ${path.join(" → ")}</div>`
-      )
+      .map((journey) => {
+        // Extract just the path from the URL for readability
+        const pathOnly = journey.pages.map(page => {
+          try {
+            return new URL(page.url).pathname;
+          } catch (e) {
+            return page.url; // Fallback for invalid URLs
+          }
+        });
+        // Display a truncated user ID for privacy/brevity
+        const shortUserId = journey.user_id.substring(0, 8);
+        return `<div>User (${shortUserId}...): ${pathOnly.join(" → ")}</div>`;
+      })
       .join("");
     journeyContainer.innerHTML = content || "<div>No user journey data available.</div>";
   }
 
-  // 2. Click Patterns (Heatmap data)
+  // 2. Click Patterns
   const clickPatternsContainer = document.getElementById("clickPatterns");
   if (clickPatternsContainer) {
-    const patterns = data.click_patterns || {};
-    const content = Object.entries(patterns)
-      .map(([element, count]) => `<div>${element}: ${count} clicks</div>`)
-      .join("");
-    clickPatternsContainer.innerHTML = content || "<div>No click pattern data available.</div>";
+    const totalClicks = data.button_clicks;
+    if (typeof totalClicks === 'number') {
+      clickPatternsContainer.innerHTML = `<div>Total Button Clicks: ${totalClicks}</div><p style="font-size: 0.8em; color: #a0aec0; margin-top: 5px;">Detailed click positions are available in the 'Heatmap' tab.</p>`;
+    } else {
+      clickPatternsContainer.innerHTML = "<div>No click pattern data available.</div>";
+    }
   }
 }
 
 function updatePerformance(data) {
-  const performanceData = data.performance || {};
+    const performanceData = data.performance || {};
 
-  // 1. Page Load Chart
-  const loadTimeChart = document.getElementById("loadTimeChart");
-  if (loadTimeChart) {
-    const loadData = performanceData.load_times || [];
-    loadTimeChart.innerHTML = loadData.length
-      ? `<ul>${loadData.map(item => `<li>${item.page}: ${item.time}ms</li>`).join('')}</ul>`
-      : "<p>No load time data available.</p>";
+    // 1. Page Load Chart
+    const loadTimeChartContainer = document.getElementById("loadTimeChart");
+    if (loadTimeChartContainer) {
+        const loadData = (performanceData.load_times || []).sort((a, b) => b.time - a.time).slice(0, 10); // Sort and take top 10
+
+        if (loadData.length === 0) {
+            loadTimeChartContainer.innerHTML = "<p>No load time data available.</p>";
+        } else {
+            const labels = loadData.map(item => {
+                try {
+                    return new URL(item.page).pathname; // Cleaner labels
+                } catch (e) {
+                    return item.page;
+                }
+            });
+            const values = loadData.map(item => item.time);
+
+            const plotData = [{
+                y: labels,
+                x: values,
+                type: 'bar',
+                orientation: 'h',
+                marker: { color: '#ef4444' } // Red for performance issues
+            }];
+
+            const layout = {
+                margin: { t: 10, b: 40, l: 150, r: 20 },
+                xaxis: { title: 'Load Time (ms)' },
+                yaxis: { automargin: true },
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                font: { color: '#a0aec0' }
+            };
+
+            Plotly.newPlot(loadTimeChartContainer, plotData, layout, { responsive: true, displayModeBar: false });
+        }
+    }
+
+    // 2. Error Chart
+    const errorChartContainer = document.getElementById("errorChart");
+    if (errorChartContainer) {
+        const errorData = performanceData.error_counts || {};
+        const errorEntries = Object.entries(errorData);
+
+        if (errorEntries.length === 0) {
+            errorChartContainer.innerHTML = "<p>No error data available.</p>";
+        } else {
+            const labels = errorEntries.map(([type]) => type);
+            const values = errorEntries.map(([, count]) => count);
+
+            const plotData = [{ x: labels, y: values, type: 'bar', marker: { color: '#f97316' } }]; // Orange for errors
+            const layout = {
+                margin: { t: 10, b: 40, l: 50, r: 20 },
+                yaxis: { title: 'Count' },
+                paper_bgcolor: 'transparent',
+                plot_bgcolor: 'transparent',
+                font: { color: '#a0aec0' }
+            };
+
+            Plotly.newPlot(errorChartContainer, plotData, layout, { responsive: true, displayModeBar: false });
+        }
+    }
+}
+
+async function populateHeatmapPages(siteId) {
+  const pageSelect = document.getElementById("heatmapPageSelect");
+  if (!pageSelect) return;
+
+  // Show a loading state
+  pageSelect.innerHTML = '<option value="">Loading pages...</option>';
+  pageSelect.disabled = true;
+
+  try {
+    // NOTE: Using a RESTful URL consistent with other API calls
+    const res = await fetch(`/analytics/${siteId}/heatmap/pages`);
+    if (!res.ok) throw new Error("Failed to fetch pages for heatmap");
+
+    const pages = await res.json();
+    pageSelect.innerHTML = ""; // Clear loading state
+
+    if (pages.length === 0) {
+      pageSelect.innerHTML = '<option value="">No pages found</option>';
+      return;
+    }
+
+    pages.forEach((page) => {
+      const option = document.createElement("option");
+      option.value = page;
+      option.textContent = (page === "/" || page === "") ? "Homepage" : page;
+      pageSelect.appendChild(option);
+    });
+  } catch (err) {
+    console.error("Failed to load heatmap pages:", err);
+    pageSelect.innerHTML = '<option value="">Error loading pages</option>';
+  } finally {
+    pageSelect.disabled = false;
+  }
+}
+
+function initializeHeatmap() {
+  if (heatmapInstance) return; // Already initialized
+
+  const container = document.getElementById('clickHeatmap');
+  if (!container) return; // Container not on page
+
+  heatmapInstance = h337.create({
+    container: container,
+    radius: 40,
+    maxOpacity: 0.6,
+    minOpacity: 0.1,
+    blur: 0.85,
+  });
+}
+
+async function fetchAndRenderClickHeatmap() {
+  if (!currentSiteId) return;
+
+  initializeHeatmap();
+  if (!heatmapInstance) return;
+
+  const page = document.getElementById("heatmapPageSelect").value;
+  if (!page) {
+    heatmapInstance.setData({ max: 0, data: [] }); // Clear heatmap if no page selected
+    return;
   }
 
-  // 2. Error Chart
-  const errorChart = document.getElementById("errorChart");
-  if (errorChart) {
-    const errorData = performanceData.error_counts || {};
-    errorChart.innerHTML = Object.keys(errorData).length
-      ? `<ul>${Object.entries(errorData).map(([type, count]) => `<li>${type}: ${count}</li>`).join('')}</ul>`
-      : "<p>No error data available.</p>";
+  const startDate = document.getElementById("startDate").value;
+  const endDate = document.getElementById("endDate").value;
+
+  try {
+    let url = `/heatmap/clicks?site_id=${currentSiteId}&page=${page}`;
+    if (startDate) url += `&start_date=${startDate}`;
+    if (endDate) url += `&end_date=${endDate}`;
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch heatmap data');
+    const rawData = await res.json();
+
+    const formattedData = rawData.map(pt => ({
+      x: Math.round(pt.x),
+      y: Math.round(pt.y),
+      value: 1, // Each click has a value of 1
+    }));
+
+    heatmapInstance.setData({
+      max: 5, // Determines the "hotness" threshold. Adjust as needed.
+      data: formattedData,
+    });
+  } catch (err) {
+    console.error("Failed to render click heatmap:", err);
+    heatmapInstance.setData({ max: 0, data: [] }); // Clear on error
+  }
+}
+
+function initializeScrollmap() {
+  if (scrollmapInstance) return;
+  const container = document.getElementById('scrollHeatmap');
+  if (!container) return;
+
+  scrollmapInstance = h337.create({
+    container: container,
+    radius: 50,
+    maxOpacity: 0.8,
+    // A scrollmap is a vertical gradient
+    gradient: {
+      '.2': 'blue',
+      '.5': 'green',
+      '.8': 'yellow',
+      '.95': 'red'
+    }
+  });
+}
+
+async function fetchAndRenderScrollmap() {
+  if (!currentSiteId) return;
+
+  initializeScrollmap();
+  if (!scrollmapInstance) return;
+
+  const page = document.getElementById("heatmapPageSelect").value;
+  if (!page) {
+    scrollmapInstance.setData({ max: 0, data: [] });
+    return;
+  }
+
+  const startDate = document.getElementById("startDate").value;
+  const endDate = document.getElementById("endDate").value;
+
+  try {
+    let url = `/analytics/${currentSiteId}/scrollmap?page=${page}`;
+    if (startDate) url += `&start_date=${startDate}`;
+    if (endDate) url += `&end_date=${endDate}`;
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch scrollmap data');
+    const rawData = await res.json();
+
+    if (rawData.length === 0) {
+      scrollmapInstance.setData({ max: 0, data: [] });
+      return;
+    }
+
+    const container = document.getElementById('scrollHeatmap');
+    const max_value = rawData[0]?.total_sessions || 1;
+    const formattedData = rawData.map(pt => ({ x: Math.floor(container.offsetWidth / 2), y: Math.floor(container.offsetHeight * (pt.y_percent / 100)), value: pt.value }));
+
+    scrollmapInstance.setData({ max: max_value, data: formattedData });
+  } catch (err) {
+    console.error("Failed to render scrollmap:", err);
+    scrollmapInstance.setData({ max: 0, data: [] });
   }
 }
 
@@ -331,8 +557,65 @@ document.addEventListener("DOMContentLoaded", () => {
       } else if (pageId === "dashboard" && currentSiteId) {
         updateDashboardStats();
       }
+      // ADDED: Load data when navigating to the Alerts page
+      else if (pageId === "alerts") {
+        loadAlertsPage();
+      }
     });
   });
+
+  // ========== 10. Analytics Page Toggles ==========
+  const heatmapToggleButton = document.getElementById('toggleHeatmapType');
+  const clickHeatmapContainer = document.getElementById('clickHeatmap');
+  const scrollHeatmapContainer = document.getElementById('scrollHeatmap');
+  const heatmapTitle = document.getElementById('heatmapTitle');
+
+  heatmapToggleButton?.addEventListener('click', () => {
+    const isShowingClickmap = clickHeatmapContainer.style.display !== 'none';
+    if (isShowingClickmap) {
+      // Switch to scrollmap
+      clickHeatmapContainer.style.display = 'none';
+      scrollHeatmapContainer.style.display = 'block';
+      heatmapTitle.textContent = 'Scroll Map';
+      heatmapToggleButton.textContent = 'Show Clickmap';
+      fetchAndRenderScrollmap();
+    } else {
+      // Switch back to clickmap
+      scrollHeatmapContainer.style.display = 'none';
+      clickHeatmapContainer.style.display = 'block';
+      heatmapTitle.textContent = 'Click Heatmap';
+      heatmapToggleButton.textContent = 'Show Scrollmap';
+    }
+  });
+  const timeOnElementToggle = document.getElementById('timeOnElementToggle');
+  const timeOnElementContainer = document.getElementById('timeOnElementContainer');
+
+  if (timeOnElementToggle && timeOnElementContainer) {
+    timeOnElementToggle.addEventListener('change', () => {
+      if (timeOnElementToggle.checked) {
+        timeOnElementContainer.style.display = 'block';
+        fetchTimeOnElementData(currentSiteId);
+      } else {
+        timeOnElementContainer.style.display = 'none';
+      }
+    });
+  }
+
+  // Mobile/Desktop toggle handled in overview tab
+  const deviceToggleRadios = document.querySelectorAll('input[name="deviceToggle"]');
+  deviceToggleRadios.forEach(radio => {
+    radio.addEventListener('change', () => {
+      if (!currentSiteId) return;
+      fetchAnalytics(currentSiteId);
+    });
+  });
+
+function renderTimeOnElementHeatmap(data) {
+  const container = document.getElementById('timeOnElementChart');
+  if (!container) return;
+  // Placeholder: Render time-on-element heatmap visualization
+  container.innerHTML = '<p>Time-on-element heatmap visualization coming soon.</p>';
+}
 
   // ========== Site Dropdown Change Handler ==========
   document.getElementById('siteSelect')?.addEventListener('change', async (e) => {
@@ -342,6 +625,11 @@ document.addEventListener("DOMContentLoaded", () => {
       showToast(`Switched to ${e.target.selectedOptions[0].textContent}`, 'success');
       await fetchAnalytics(currentSiteId);
       await updateDashboardStats();
+
+      // If heatmap tab is active, refresh its data
+      if (document.querySelector('.tab-btn[data-tab="heatmap"].active')) {
+        populateHeatmapPages(currentSiteId);
+      }
     } else {
       // Clear dashboard when no site selected
       clearDashboardData();
@@ -359,7 +647,19 @@ document.addEventListener("DOMContentLoaded", () => {
       tabContents.forEach((tab) => tab.classList.remove("active"));
 
       tab.classList.add("active");
-      document.getElementById(tab.dataset.tab)?.classList.add("active");
+      const tabId = tab.dataset.tab;
+      document.getElementById(tabId)?.classList.add("active");
+
+      // When switching to the heatmap tab, populate the page dropdown
+      if (tabId === 'heatmap' && currentSiteId) {
+        populateHeatmapPages(currentSiteId);
+      } else if (tabId === 'overview' && currentSiteId) {
+        // Re-fetch analytics if switching back to overview
+        // This ensures charts are up-to-date with date range
+        const start = document.getElementById('startDate').value;
+        const end = document.getElementById('endDate').value;
+        fetchAnalytics(currentSiteId, start, end);
+      }
     });
   });
 
@@ -377,7 +677,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const cancelAlertBtn = document.getElementById("cancelAlertBtn");
 
   addAlertBtn?.addEventListener("click", () => addAlertForm.classList.remove("hidden"));
-  cancelAlertBtn?.addEventListener("click", () => addAlertForm.classList.add("hidden"));
+  cancelAlertBtn?.addEventListener("click", () => {
+    addAlertForm.classList.add("hidden");
+    document.getElementById('alertForm')?.reset(); // Also reset the form
+  });
 
   // ========== 5. Chart.js Chart ==========
   // const pageviewsChart = document.getElementById("pageviewsChart");
@@ -456,6 +759,49 @@ document.addEventListener("DOMContentLoaded", () => {
   setTimeout(initializeDateRangePicker, 100);
 });
 
+// ADDED: Handle Alert Form Submission
+document.getElementById('alertForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!currentSiteId) {
+    showToast('Please select a site before creating an alert.', 'warning');
+    return;
+  }
+
+  const formData = {
+    site_id: currentSiteId,
+    name: document.getElementById('alertName').value,
+    condition: document.getElementById('alertCondition').value,
+    threshold: parseInt(document.getElementById('alertThreshold').value, 10),
+    time_window: parseInt(document.getElementById('alertTimeWindow').value, 10),
+    notification_email: document.getElementById('alertEmail').value,
+  };
+
+  try {
+    const res = await fetch('/alerts/rules', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData),
+    });
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.detail || 'Failed to create alert rule');
+    }
+    showToast('Alert rule created successfully!', 'success');
+    document.getElementById('alertForm').reset();
+    document.getElementById('addAlertForm').classList.add('hidden');
+    loadAlertsPage(); // Refresh the list
+  } catch (err) {
+    console.error('Error creating alert:', err);
+    showToast(err.message, 'error');
+  }
+});
+
+// ========== Heatmap Listeners (outside DOMContentLoaded is fine) ==========
+document.getElementById("heatmapPageSelect")?.addEventListener("change", fetchAndRenderClickHeatmap);
+document.getElementById("heatmapDeviceToggle")?.addEventListener("change", fetchAndRenderClickHeatmap);
+
+
+
 // ADD this outside the DOMContentLoaded listener
 function initializeDateRangePicker() {
   const applyButton = document.getElementById('applyDateRange');
@@ -469,6 +815,11 @@ function initializeDateRangePicker() {
       const start = document.getElementById('startDate').value;
       const end = document.getElementById('endDate').value;
       fetchAnalytics(currentSiteId, start, end);
+
+      // If heatmap tab is active, refresh its data too
+      if (document.querySelector('.tab-btn[data-tab="heatmap"].active')) {
+        fetchAndRenderClickHeatmap();
+      }
     });
   }
 }
@@ -616,6 +967,97 @@ function initializeDateRangePicker() {
   }
 }
 
+// ADDED: All functions for managing the Alerts page
+async function loadAlertsPage() {
+  if (!currentSiteId) {
+    showToast("Please select a site to manage alerts.", "warning");
+    document.getElementById('alertRulesList').innerHTML = '<p>Select a site to see alert rules.</p>';
+    document.getElementById('recentNotificationsList').innerHTML = '<p>Select a site to see notifications.</p>';
+    return;
+  }
+  await fetchAndDisplayAlertRules(currentSiteId);
+  await fetchAndDisplayRecentNotifications(currentSiteId);
+}
+
+async function fetchAndDisplayAlertRules(siteId) {
+  const container = document.getElementById('alertRulesList');
+  container.innerHTML = '<div class="loading">Loading rules...</div>';
+  try {
+    const res = await fetch(`/alerts/rules?site_id=${siteId}`);
+    if (!res.ok) throw new Error('Failed to fetch alert rules');
+    const rules = await res.json();
+    displayAlertRules(rules);
+  } catch (err) {
+    console.error('Error fetching alert rules:', err);
+    container.innerHTML = '<div class="error">Could not load alert rules.</div>';
+  }
+}
+
+function displayAlertRules(rules) {
+  const container = document.getElementById('alertRulesList');
+  if (!rules || rules.length === 0) {
+    container.innerHTML = '<p>No active alert rules for this site.</p>';
+    return;
+  }
+  container.innerHTML = rules.map(rule => `
+    <div class="alert-rule-card">
+      <div class="rule-details">
+        <strong>${rule.name}</strong>
+        <p>Condition: ${rule.condition.replace(/_/g, ' ')} | Threshold: ${rule.threshold}</p>
+        <p>Notifies: ${rule.notification_email}</p>
+      </div>
+      <div class="rule-actions">
+        <button class="btn btn-sm btn-danger" onclick="deleteAlertRule('${rule.id}')">
+          <i class="fas fa-trash"></i> Delete
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function fetchAndDisplayRecentNotifications(siteId) {
+    const container = document.getElementById('recentNotificationsList');
+    container.innerHTML = '<div class="loading">Loading notifications...</div>';
+    try {
+        const res = await fetch(`/alerts/notifications?site_id=${siteId}`);
+        if (!res.ok) throw new Error('Failed to fetch notifications');
+        const notifications = await res.json();
+        displayRecentNotifications(notifications);
+    } catch (err) {
+        console.error('Error fetching notifications:', err);
+        container.innerHTML = '<div class="error">Could not load recent notifications.</div>';
+    }
+}
+
+function displayRecentNotifications(notifications) {
+    const container = document.getElementById('recentNotificationsList');
+    if (!notifications || notifications.length === 0) {
+        container.innerHTML = '<p>No recent notifications for this site.</p>';
+        return;
+    }
+    container.innerHTML = notifications.map(n => `
+        <div class="notification-item">
+            <i class="fas fa-bell"></i>
+            <div class="notification-content">
+                <p><strong>${n.alert_name}:</strong> ${n.message}</p>
+                <small>${new Date(n.created_at).toLocaleString()}</small>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function deleteAlertRule(ruleId) {
+  if (!confirm('Are you sure you want to delete this alert rule?')) return;
+  try {
+    const res = await fetch(`/alerts/rules/${ruleId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to delete rule');
+    showToast('Alert rule deleted successfully.', 'success');
+    loadAlertsPage(); // Refresh the lists
+  } catch (err) {
+    console.error('Error deleting alert rule:', err);
+    showToast('Failed to delete alert rule.', 'error');
+  }
+}
 
 
 // ADD these new functions:

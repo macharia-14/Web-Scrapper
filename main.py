@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from backend.database import connect_to_db, disconnect_from_db
-from backend.routes import sites, tracking, analytics, export
+from backend.routes import sites, tracking, analytics, export, alert
 
 load_dotenv()
 
@@ -63,3 +63,4 @@ app.include_router(sites.router)
 app.include_router(tracking.router)
 app.include_router(analytics.router)
 app.include_router(export.router)
+app.include_router(alert.router)

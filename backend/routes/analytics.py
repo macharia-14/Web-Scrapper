@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Request, HTTPException, Query
 from datetime import datetime, timedelta
 from collections import defaultdict
+from typing import List
+from backend.database import get_db
 import json
 
 router = APIRouter()
@@ -137,6 +139,7 @@ async def get_analytics(
         load_times = [e['metadata'].get('load_time') for e in perf_events if e.get('metadata') and e['metadata'].get('load_time') is not None]
         avg_load_time = round(sum(load_times) / len(load_times)) if load_times else 0
 
+
         # Real-time visitors (last 5 minutes)
         real_time_threshold = datetime.utcnow() - timedelta(minutes=5)
         real_time_query = """
@@ -171,6 +174,100 @@ async def get_analytics(
     finally:
         await request.app.state.db.release(conn)
 
+@router.get("/analytics/{site_id}/heatmap/pages", response_model=List[str])
+async def get_heatmap_pages(site_id: str, request: Request):
+    """Get a list of unique page URLs that have click events for the heatmap."""
+    conn = await request.app.state.db.acquire()
+    try:
+        query = """
+            SELECT DISTINCT url
+            FROM events
+            WHERE site_id = $1 AND event_type = 'click' AND url IS NOT NULL
+            ORDER BY url
+        """
+        rows = await conn.fetch(query, site_id)
+        return [row["url"] for row in rows]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get heatmap pages: {str(e)}")
+    finally:
+        await request.app.state.db.release(conn)
+
+@router.get("/heatmap/clicks")
+async def get_click_heatmap(
+    request: Request,
+    site_id: str = Query(...),
+    page: str = Query(...),
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+):
+    """Fetches click coordinates for a specific page to generate a heatmap."""
+    conn = await request.app.state.db.acquire()
+    try:
+        end_dt = datetime.utcnow()
+        start_dt = end_dt - timedelta(days=7)
+
+        if start_date:
+            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        if end_date:
+            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+
+        query = """
+            SELECT metadata->'click_x' as x, metadata->'click_y' as y
+            FROM events
+            WHERE site_id = $1 AND event_type = 'click' AND url = $2
+              AND created_at BETWEEN $3 AND $4
+              AND metadata ? 'click_x' AND metadata ? 'click_y'
+        """
+        rows = await conn.fetch(query, site_id, page, start_dt, end_dt)
+        return [{"x": float(r["x"]), "y": float(r["y"])} for r in rows if r["x"] is not None and r["y"] is not None]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get click heatmap data: {str(e)}")
+    finally:
+        await request.app.state.db.release(conn)
+
+@router.get("/analytics/{site_id}/scrollmap")
+async def get_scrollmap_data(
+    request: Request,
+    site_id: str,
+    page: str = Query(...),
+    start_date: str = Query(None),
+    end_date: str = Query(None),
+):
+    """Fetches scroll depth data for a specific page."""
+    conn = await request.app.state.db.acquire()
+    try:
+        end_dt = datetime.utcnow()
+        start_dt = end_dt - timedelta(days=7)
+
+        if start_date:
+            start_dt = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        if end_date:
+            end_dt = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+
+        query = """
+            SELECT session_id, MAX(CAST(metadata->>'scroll_percentage' AS INTEGER)) as max_depth
+            FROM events
+            WHERE site_id = $1
+              AND event_type = 'scroll_depth'
+              AND url = $2
+              AND created_at BETWEEN $3 AND $4
+              AND metadata ? 'scroll_percentage'
+            GROUP BY session_id
+        """
+        rows = await conn.fetch(query, site_id, page, start_dt, end_dt)
+        if not rows:
+            return []
+
+        scroll_bins = defaultdict(int)
+        for row in rows:
+            for i in range(0, row['max_depth'] + 1, 5): # Bin in 5% increments
+                scroll_bins[i] += 1
+
+        return [{"y_percent": depth, "value": count, "total_sessions": len(rows)} for depth, count in scroll_bins.items()]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get scrollmap data: {str(e)}")
+    finally:
+        await request.app.state.db.release(conn)
 
 @router.get("/analytics/{site_id}/realtime")
 async def get_realtime_analytics(site_id: str, request: Request):

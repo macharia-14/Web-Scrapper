@@ -7,9 +7,10 @@ import ipaddress
 import ipinfo
 import asyncio
 from fastapi import APIRouter, Request, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse, JSONResponse
+from fastapi.responses import PlainTextResponse
+from fastapi import BackgroundTasks
 
+from backend.routes.alert import check_alerts
 
 router = APIRouter()
 
@@ -254,7 +255,7 @@ async def get_location_data(ip_address: str):
         return None
 
 @router.post("/api/track")
-async def track_event(request: Request):
+async def track_event(request: Request, background_tasks: BackgroundTasks):
     try:
         data = await request.json()
 
@@ -341,6 +342,11 @@ async def track_event(request: Request):
 
         async with request.app.state.db.acquire() as conn:
             await conn.execute(query, *values)
+
+        # Trigger alert checks in the background
+        site_id = data.get("site_id")
+        if site_id:
+            background_tasks.add_task(check_alerts, request.app.state.db, site_id, data)
 
         return {"status": "ok"}
 

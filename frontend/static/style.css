@@ -603,6 +603,23 @@ body{
     font-weight: 600;
     color: #1e293b;
 }
+.heatmap-legend {
+  margin-top: 10px;
+  display: flex;
+  gap: 15px;
+  font-size: 14px;
+  align-items: center;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.heatmap-legend span {
+  color: #6b7280;
+}
 
 /*Real-time Analytics*/
 .realtime-grid {

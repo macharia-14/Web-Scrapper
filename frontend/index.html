@@ -10,8 +10,9 @@
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
       rel="stylesheet"
     />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js" ></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/heatmap.js/2.0.2/heatmap.min.js"></script>
   </head>
   <body>
     <div class="container">
@@ -124,98 +125,108 @@
 
           <!--Charts Section-->
           <!-- REPLACE this entire charts-grid section -->
-        <div class="charts-grid">
-          <!-- Real-time Performance Metrics -->
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3><i class="fas fa-tachometer-alt"></i> Performance Overview</h3>
-              <span class="live-indicator">
-                <span class="pulse-dot"></span>
-                <span>Live</span>
-              </span>
-            </div>
-            <div class="performance-metrics">
-              <div class="metric-row">
-                <div class="metric-item">
-                  <div class="metric-icon"><i class="fas fa-clock"></i></div>
-                  <div class="metric-content">
-                    <div class="metric-value" id="avgLoadTime">0ms</div>
-                    <div class="metric-label">Avg Load Time</div>
+          <div class="charts-grid">
+            <!-- Real-time Performance Metrics -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3>
+                  <i class="fas fa-tachometer-alt"></i> Performance Overview
+                </h3>
+                <span class="live-indicator">
+                  <span class="pulse-dot"></span>
+                  <span>Live</span>
+                </span>
+              </div>
+              <div class="performance-metrics">
+                <div class="metric-row">
+                  <div class="metric-item">
+                    <div class="metric-icon"><i class="fas fa-clock"></i></div>
+                    <div class="metric-content">
+                      <div class="metric-value" id="avgLoadTime">0ms</div>
+                      <div class="metric-label">Avg Load Time</div>
+                    </div>
+                  </div>
+                  <div class="metric-item">
+                    <div class="metric-icon">
+                      <i class="fas fa-percentage"></i>
+                    </div>
+                    <div class="metric-content">
+                      <div class="metric-value" id="bounceRate">0%</div>
+                      <div class="metric-label">Bounce Rate</div>
+                    </div>
                   </div>
                 </div>
-                <div class="metric-item">
-                  <div class="metric-icon"><i class="fas fa-percentage"></i></div>
-                  <div class="metric-content">
-                    <div class="metric-value" id="bounceRate">0%</div>
-                    <div class="metric-label">Bounce Rate</div>
+                <div class="metric-row">
+                  <div class="metric-item">
+                    <div class="metric-icon">
+                      <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="metric-content">
+                      <div class="metric-value" id="jsErrors">0</div>
+                      <div class="metric-label">JS Errors</div>
+                    </div>
+                  </div>
+                  <div class="metric-item">
+                    <div class="metric-icon">
+                      <i class="fas fa-paper-plane"></i>
+                    </div>
+                    <div class="metric-content">
+                      <div class="metric-value" id="formSubmissions">0</div>
+                      <div class="metric-label">Form Submissions</div>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div class="metric-row">
-                <div class="metric-item">
-                  <div class="metric-icon"><i class="fas fa-exclamation-triangle"></i></div>
-                  <div class="metric-content">
-                    <div class="metric-value" id="jsErrors">0</div>
-                    <div class="metric-label">JS Errors</div>
-                  </div>
-                </div>
-                <div class="metric-item">
-                  <div class="metric-icon"><i class="fas fa-paper-plane"></i></div>
-                  <div class="metric-content">
-                    <div class="metric-value" id="formSubmissions">0</div>
-                    <div class="metric-label">Form Submissions</div>
-                  </div>
-                </div>
-              </div>
             </div>
-          </div>
 
-          <!-- Top Pages List -->
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3><i class="fas fa-list"></i> Top Pages Today</h3>
-              <div class="chart-actions">
-                <select id="topPagesFilter">
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                </select>
+            <!-- Top Pages List -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3><i class="fas fa-list"></i> Top Pages Today</h3>
+                <div class="chart-actions">
+                  <select id="topPagesFilter">
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                  </select>
+                </div>
+              </div>
+              <div class="top-pages-list" id="topPagesList">
+                <div class="loading-placeholder">
+                  <i class="fas fa-spinner fa-spin"></i>
+                  <span>Loading pages...</span>
+                </div>
               </div>
             </div>
-            <div class="top-pages-list" id="topPagesList">
-              <div class="loading-placeholder">
-                <i class="fas fa-spinner fa-spin"></i>
-                <span>Loading pages...</span>
-              </div>
-            </div>
-          </div>
 
-          <!-- Traffic Sources -->
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3><i class="fas fa-share-alt"></i> Traffic Sources</h3>
-            </div>
-            <div class="traffic-sources" id="trafficSources">
-              <div class="loading-placeholder">
-                <i class="fas fa-spinner fa-spin"></i>
-                <span>Loading sources...</span>
+            <!-- Traffic Sources -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3><i class="fas fa-share-alt"></i> Traffic Sources</h3>
+              </div>
+              <div class="traffic-sources" id="trafficSources">
+                <div class="loading-placeholder">
+                  <i class="fas fa-spinner fa-spin"></i>
+                  <span>Loading sources...</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <!-- Geographic Distribution -->
-          <div class="chart-card">
-            <div class="chart-header">
-              <h3><i class="fas fa-globe-americas"></i> Geographic Distribution</h3>
-            </div>
-            <div class="geo-distribution" id="geoDistribution">
-              <div class="loading-placeholder">
-                <i class="fas fa-spinner fa-spin"></i>
-                <span>Loading locations...</span>
+            <!-- Geographic Distribution -->
+            <div class="chart-card">
+              <div class="chart-header">
+                <h3>
+                  <i class="fas fa-globe-americas"></i> Geographic Distribution
+                </h3>
+              </div>
+              <div class="geo-distribution" id="geoDistribution">
+                <div class="loading-placeholder">
+                  <i class="fas fa-spinner fa-spin"></i>
+                  <span>Loading locations...</span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
           <!--Recent Activity-->
           <div class="Activity-section">
@@ -354,7 +365,7 @@
                 <h4>Device Breakdown</h4>
                 <div id="deviceChart"></div>
               </div>
-              <div class="analytics-card"> 
+              <div class="analytics-card">
                 <h4>Top Pages</h4>
                 <div id="analyticsTopPagesChart" class="chart-container"></div>
               </div>
@@ -363,19 +374,19 @@
                 <div class="metrics-list">
                   <div class="metric-item">
                     <span>Average Load Time</span>
-                    <span id="avgLoadTime">0ms</span>
+                    <span id="analytics-avgLoadTime">0ms</span>
                   </div>
                   <div class="metric-item">
                     <span>Form Submissions</span>
-                    <span id="formSubmissions">0</span>
+                    <span id="analytics-formSubmissions">0</span>
                   </div>
                   <div class="metric-item">
                     <span>JavaScript Errors</span>
-                    <span id="jsErrors">0</span>
+                    <span id="analytics-jsErrors">0</span>
                   </div>
                   <div class="metric-item">
                     <span>Bounce Rate</span>
-                    <span id="bounceRate">0%</span>
+                    <span id="analytics-bounceRate">0%</span>
                   </div>
                 </div>
               </div>
@@ -410,13 +421,65 @@
 
           <!-- Heatmap Tab -->
           <div id="heatmap" class="tab-content">
+            <!-- Controls -->
+            <div class="heatmap-controls">
+              <div class="heatmap-filters">
+                <label for="heatmapPageSelect">Page:</label>
+                <select id="heatmapPageSelect">
+                  <option value="/">Homepage</option>
+                  <option value="/about">About</option>
+                  <option value="/contact">Contact</option>
+                  <!-- Additional pages will be added dynamically -->
+                </select>
+
+                <label for="heatmapDeviceToggle">View:</label>
+                <select id="heatmapDeviceToggle">
+                  <option value="desktop">Desktop</option>
+                  <option value="mobile">Mobile</option>
+                </select>
+
+                <button id="toggleHeatmapType" class="btn btn-secondary">
+                  Show Scrollmap
+                </button>
+              </div>
+            </div>
+
+            <!-- Heatmap Display -->
             <div class="heatmap-section">
-              <h4>Click Heatmap</h4>
-              <div id="clickHeatmap"></div>
+              <h4 id="heatmapTitle">Click Heatmap</h4>
+
+              <!-- Click Heatmap Canvas -->
+              <div id="clickHeatmap" class="heatmap-canvas-container" style="width: 1200px; height: 800px;">
+                <!-- heatmap.js will create and manage a canvas inside this div -->
+              </div>
+
+              <!-- Scroll Heatmap Canvas -->
+              <div id="scrollHeatmap" class="heatmap-canvas-container" style="display: none; width: 1200px; height: 800px;">
+                <!-- heatmap.js will create and manage a canvas inside this div -->
+              </div>
+
+              <!-- Heatmap Legend -->
+              <div class="heatmap-legend">
+                <span
+                  class="legend-dot"
+                  style="background-color: #ff0000"
+                ></span>
+                High Intensity
+                <span
+                  class="legend-dot"
+                  style="background-color: #ffa500"
+                ></span>
+                Medium
+                <span
+                  class="legend-dot"
+                  style="background-color: #ffff00"
+                ></span>
+                Low
+              </div>
             </div>
           </div>
         </div>
-        
+
         <!--Real time Page-->
         <div id="realtime" class="page">
           <div class="page-header">
@@ -528,12 +591,12 @@
           <!--Alert List-->
           <div class="alert-section">
             <h3>Active Alert Rules</h3>
-            <div id="NotificationsList"></div>
+            <div id="alertRulesList"></div>
           </div>
           <!--Recent Notifications-->
           <div class="notifications-section">
             <h3>Recent Notifications</h3>
-            <div id="RecentNotificationsList"></div>
+            <div id="recentNotificationsList"></div>
           </div>
         </div>
 
