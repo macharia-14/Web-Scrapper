@@ -11,18 +11,16 @@ load_dotenv()
 
 app = FastAPI()
 
-# ✅ Define specific allowed origins for CORS
-allowed_origins = [
-    "http://127.0.0.1:5501",
-    "http://localhost:5501",
-    "http://127.0.0.1:5500",
-    # Add your production domain(s) here if needed
-]
+# Define a regex for allowed origins to include localhost, 127.0.0.1, and ngrok URLs.
+# This is more flexible for testing than a static list, especially since ngrok
+# can generate dynamic URLs. It supports new (.app) and old (.io) ngrok domains.
+origin_regex = r"https?://(localhost|127\.0\.0\.1)(:\d+)?|https?://.+\.ngrok(-free)?\.(app|io)"
 
-# ✅ Use the correct CORS setup (no wildcard when using credentials)
+# Use the correct CORS setup. `allow_origin_regex` allows matching against dynamic
+# origins like those from ngrok, which is not possible with a static `allow_origins` list.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origin_regex=origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],

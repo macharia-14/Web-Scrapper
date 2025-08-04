@@ -23,9 +23,10 @@ def get_ipinfo_client():
     return None
 
 @router.get("/tracking-script/{site_id}")
-async def get_tracking_script(site_id: str):
+async def get_tracking_script(site_id: str, request: Request):
     """Generate the enhanced tracking script for a specific site"""
-    backend_url = os.environ.get('TRACKER_BACKEND_URL', 'http://localhost:8001')
+    # Dynamically determine the backend URL from the request to support ngrok/proxies
+    backend_url = f"{request.url.scheme}://{request.url.netloc}"
 
     script_content = f"""(function() {{
     'use strict';
@@ -55,8 +56,7 @@ async def get_tracking_script(site_id: str):
             title: document.title,
             referrer: document.referrer,
             user_agent: navigator.userAgent,
-            metadata: metadata,
-            ...metadata
+            metadata: metadata
         }};
 
         if (navigator.sendBeacon) {{
