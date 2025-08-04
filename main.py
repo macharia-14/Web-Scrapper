@@ -14,7 +14,12 @@ app = FastAPI()
 # Define a regex for allowed origins to include localhost, 127.0.0.1, and ngrok URLs.
 # This is more flexible for testing than a static list, especially since ngrok
 # can generate dynamic URLs. It supports new (.app) and old (.io) ngrok domains.
-origin_regex = r"https?://(localhost|127\.0\.0\.1)(:\d+)?|https?://.+\.ngrok(-free)?\.(app|io)"
+origin_regex = (
+    r"https?://(localhost|127\.0\.0\.1)(:\d+)?"
+    r"|https?://.+\.ngrok(-free)?\.(app|io)"
+    r"|http://\d{1,3}(\.\d{1,3}){3}(:\d+)?"
+)
+
 
 # Use the correct CORS setup. `allow_origin_regex` allows matching against dynamic
 # origins like those from ngrok, which is not possible with a static `allow_origins` list.
@@ -55,6 +60,12 @@ async def serve_index():
 @app.options("/api/track")
 async def preflight_track(response: Response):
     return Response(status_code=204)
+
+# Simple ping endpoint for health checks
+@app.get("/ping")
+async def ping():
+    return {"message": "pong"}
+
 
 # Include API routes
 app.include_router(sites.router)
