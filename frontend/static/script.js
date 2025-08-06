@@ -1324,3 +1324,78 @@ function updateChartHeaders(timeRange) {
     geoHeader.innerHTML = `<i class="fas fa-globe-americas"></i> Geographic Distribution (${timeLabel})`;
   }
 }
+
+// Initialize dashboard date range
+function initializeDateRange() {
+  const startDate = document.getElementById('dashboardStartDate');
+  const endDate = document.getElementById('dashboardEndDate');
+  const applyBtn = document.getElementById('applyDashboardDateRange');
+  
+  // Set default to today
+  const today = new Date().toISOString().split('T')[0];
+  startDate.value = today;
+  endDate.value = today;
+  
+  // Apply date range when button is clicked
+  applyBtn.addEventListener('click', function() {
+    if (startDate.value && endDate.value) {
+      if (startDate.value <= endDate.value) {
+        updateDashboardData(startDate.value, endDate.value);
+      } else {
+        showToast('End date must be after start date', 'error');
+      }
+    } else {
+      showToast('Please select both start and end dates', 'error');
+    }
+  });
+}
+
+// Update dashboard data based on date range
+function updateDashboardData(startDate, endDate) {
+  const selectedSiteId = document.getElementById('siteSelect').value;
+  if (!selectedSiteId || selectedSiteId === 'Select a site...') {
+    showToast('Please select a site first', 'warning');
+    return;
+  }
+  
+  // Update the date range display
+  const dateDisplay = document.getElementById('currentDateRange');
+  if (startDate === endDate) {
+    dateDisplay.textContent = `Data for ${new Date(startDate).toLocaleDateString()}`;
+  } else {
+    dateDisplay.textContent = `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`;
+  }
+  
+  // Fetch filtered data from your API
+  fetchDashboardDataForDateRange(selectedSiteId, startDate, endDate);
+}
+
+// Function to fetch data for specific date range
+async function fetchDashboardDataForDateRange(siteId, startDate, endDate) {
+  try {
+    showLoading();
+    
+    // You'll need to modify your backend API to accept date range parameters
+    const response = await fetch(`/api/analytics/${siteId}/dashboard?start_date=${startDate}&end_date=${endDate}`);
+    const data = await response.json();
+    
+    if (response.ok) {
+      // Update all dashboard elements with filtered data
+      updateDashboardElements(data);
+      showToast('Dashboard updated successfully', 'success');
+    } else {
+      throw new Error(data.detail || 'Failed to fetch data');
+    }
+  } catch (error) {
+    console.error('Error fetching dashboard data:', error);
+    showToast('Error loading dashboard data', 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+// Call this when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+  // ... your existing code ...
+  initializeDateRange();
+});

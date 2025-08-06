@@ -5,6 +5,8 @@ from backend.models import SiteCreate
 from backend.models import Site
 from datetime import datetime
 from fastapi.responses import JSONResponse
+from typing import Optional
+from fastapi import Query
 import asyncpg
 
 router = APIRouter()
@@ -60,10 +62,23 @@ async def get_site(site_id: str, db=Depends(get_db)):
 
 # ADD this new endpoint to sites.py:
 @router.get("/analytics/{site_id}/realtime")
-async def get_realtime_analytics(site_id: str, db=Depends(get_db)):
+async def get_realtime_analytics(
+    site_id: str, 
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    db=Depends(get_db)
+):
     """Get real-time analytics for a specific site"""
     try:
-        # Active users (users active in last 5 minutes)
+        # Determine date conditions and parameters
+        if start_date and end_date:
+            date_condition = "AND created_at >= $2::date AND created_at < ($3::date + INTERVAL '1 day')"
+            base_params = [site_id, start_date, end_date]
+        else:
+            date_condition = "AND created_at >= CURRENT_DATE"
+            base_params = [site_id]
+        
+        # Active users (users active in last 5 minutes - always realtime)
         active_users_query = """
             SELECT COUNT(DISTINCT user_id) as active_users
             FROM events 
@@ -72,37 +87,37 @@ async def get_realtime_analytics(site_id: str, db=Depends(get_db)):
         """
         active_users = await db.fetchval(active_users_query, site_id) or 0
         
-        # Total pageviews today
-        pageviews_query = """
+        # Total pageviews for the selected date range
+        pageviews_query = f"""
             SELECT COUNT(*) as total_pageviews
             FROM events 
             WHERE site_id = $1 
             AND event_type = 'pageview'
-            AND created_at >= CURRENT_DATE
+            {date_condition}
         """
-        total_pageviews = await db.fetchval(pageviews_query, site_id) or 0
+        total_pageviews = await db.fetchval(pageviews_query, *base_params) or 0
         
-        # Unique visitors today
-        visitors_query = """
+        # Unique visitors for the selected date range
+        visitors_query = f"""
             SELECT COUNT(DISTINCT user_id) as unique_visitors
             FROM events 
             WHERE site_id = $1 
-            AND created_at >= CURRENT_DATE
+            {date_condition}
         """
-        unique_visitors = await db.fetchval(visitors_query, site_id) or 0
+        unique_visitors = await db.fetchval(visitors_query, *base_params) or 0
         
-        # Button clicks today
-        clicks_query = """
+        # Button clicks for the selected date range
+        clicks_query = f"""
             SELECT COUNT(*) as button_clicks
             FROM events 
             WHERE site_id = $1 
             AND event_type = 'button_click'
-            AND created_at >= CURRENT_DATE
+            {date_condition}
         """
-        button_clicks = await db.fetchval(clicks_query, site_id) or 0
+        button_clicks = await db.fetchval(clicks_query, *base_params) or 0
         
-        # Top pages today
-        top_pages_query = """
+        # Top pages for the selected date range
+        top_pages_query = f"""
             SELECT 
                 url, 
                 title,
@@ -110,23 +125,23 @@ async def get_realtime_analytics(site_id: str, db=Depends(get_db)):
             FROM events 
             WHERE site_id = $1 
             AND event_type = 'pageview'
-            AND created_at >= CURRENT_DATE
+            {date_condition}
             GROUP BY url, title
             ORDER BY views DESC
             LIMIT 10
         """
-        top_pages_result = await db.fetch(top_pages_query, site_id)
+        top_pages_result = await db.fetch(top_pages_query, *base_params)
         top_pages = []
         for row in top_pages_result:
             top_pages.append({
                 'url': row['url'],
                 'title': row['title'],
                 'views': row['views'],
-                'change': 0  # You can calculate change vs yesterday if needed
+                'change': 0  # You can calculate change vs previous period if needed
             })
         
-        # Traffic sources analysis
-        traffic_sources_query = """
+        # Traffic sources analysis for the selected date range
+        traffic_sources_query = f"""
             SELECT 
                 CASE 
                     WHEN referrer = '' OR referrer IS NULL THEN 'Direct'
@@ -143,11 +158,11 @@ async def get_realtime_analytics(site_id: str, db=Depends(get_db)):
             FROM events 
             WHERE site_id = $1 
             AND event_type = 'pageview'
-            AND created_at >= CURRENT_DATE
+            {date_condition}
             GROUP BY source_name
             ORDER BY visitors DESC
         """
-        traffic_sources_result = await db.fetch(traffic_sources_query, site_id)
+        traffic_sources_result = await db.fetch(traffic_sources_query, *base_params)
         total_traffic_visitors = sum(row['visitors'] for row in traffic_sources_result)
         
         traffic_sources = []
@@ -160,8 +175,8 @@ async def get_realtime_analytics(site_id: str, db=Depends(get_db)):
                 'percentage': percentage
             })
         
-        # Geographic distribution
-        geo_query = """
+        # Geographic distribution for the selected date range
+        geo_query = f"""
             SELECT 
                 COALESCE(ip_country, 'Unknown') as country_code,
                 COALESCE(ip_country, 'Unknown') as country_name,
@@ -169,12 +184,12 @@ async def get_realtime_analytics(site_id: str, db=Depends(get_db)):
                 COUNT(*) as total_visits
             FROM events 
             WHERE site_id = $1 
-            AND created_at >= CURRENT_DATE
+            {date_condition}
             GROUP BY ip_country
             ORDER BY visitors DESC
             LIMIT 10
         """
-        geo_result = await db.fetch(geo_query, site_id)
+        geo_result = await db.fetch(geo_query, *base_params)
         geo_distribution = []
         for row in geo_result:
             geo_distribution.append({
@@ -184,8 +199,8 @@ async def get_realtime_analytics(site_id: str, db=Depends(get_db)):
                 'total_visits': row['total_visits']
             })
         
-        # Performance metrics
-        perf_query = """
+        # Performance metrics for the selected date range
+        perf_query = f"""
             SELECT 
                 AVG(
                     CASE 
@@ -199,12 +214,12 @@ async def get_realtime_analytics(site_id: str, db=Depends(get_db)):
                 COUNT(CASE WHEN event_type = 'page_performance' THEN 1 END) as performance_events
             FROM events 
             WHERE site_id = $1 
-            AND created_at >= CURRENT_DATE
+            {date_condition}
         """
-        perf_result = await db.fetchrow(perf_query, site_id)
+        perf_result = await db.fetchrow(perf_query, *base_params)
         
-        # Calculate bounce rate (users who viewed only one page)
-        bounce_rate_query = """
+        # Calculate bounce rate for the selected date range
+        bounce_rate_query = f"""
             SELECT 
                 COALESCE(
                     COUNT(CASE WHEN page_count = 1 THEN 1 END) * 100.0 / NULLIF(COUNT(*), 0),
@@ -216,15 +231,15 @@ async def get_realtime_analytics(site_id: str, db=Depends(get_db)):
                     COUNT(CASE WHEN event_type = 'pageview' THEN 1 END) as page_count
                 FROM events 
                 WHERE site_id = $1 
-                AND created_at >= CURRENT_DATE
+                {date_condition}
                 GROUP BY user_id
                 HAVING COUNT(CASE WHEN event_type = 'pageview' THEN 1 END) > 0
             ) user_sessions
         """
-        bounce_rate = await db.fetchval(bounce_rate_query, site_id) or 0
+        bounce_rate = await db.fetchval(bounce_rate_query, *base_params) or 0
         
-        # Recent events for activity feed (last 10 events)
-        events_query = """
+        # Recent events for activity feed (last 15 events from selected date range)
+        events_query = f"""
             SELECT 
                 event_type, 
                 url, 
@@ -235,10 +250,11 @@ async def get_realtime_analytics(site_id: str, db=Depends(get_db)):
                 ip_country
             FROM events 
             WHERE site_id = $1 
+            {date_condition}
             ORDER BY created_at DESC 
             LIMIT 15
         """
-        events_result = await db.fetch(events_query, site_id)
+        events_result = await db.fetch(events_query, *base_params)
         
         # Format recent events for activity feed
         recent_events = []
@@ -270,8 +286,8 @@ async def get_realtime_analytics(site_id: str, db=Depends(get_db)):
                 'event_type': event_type
             })
         
-        # Device/Browser breakdown (from user agents)
-        device_query = """
+        # Device/Browser breakdown for the selected date range
+        device_query = f"""
             SELECT 
                 CASE 
                     WHEN user_agent ILIKE '%mobile%' OR user_agent ILIKE '%android%' THEN 'Mobile'
@@ -281,28 +297,37 @@ async def get_realtime_analytics(site_id: str, db=Depends(get_db)):
                 COUNT(DISTINCT user_id) as users
             FROM events 
             WHERE site_id = $1 
-            AND created_at >= CURRENT_DATE
+            {date_condition}
             AND user_agent IS NOT NULL
             GROUP BY device_type
             ORDER BY users DESC
         """
-        device_result = await db.fetch(device_query, site_id)
+        device_result = await db.fetch(device_query, *base_params)
         device_breakdown = [dict(row) for row in device_result]
         
-        # Current hour activity (for mini time series)
-        hourly_query = """
+        # Hourly activity for the selected date range
+        hourly_query = f"""
             SELECT 
                 EXTRACT(HOUR FROM created_at) as hour,
                 COUNT(CASE WHEN event_type = 'pageview' THEN 1 END) as pageviews,
                 COUNT(DISTINCT user_id) as unique_users
             FROM events 
             WHERE site_id = $1 
-            AND created_at >= CURRENT_DATE
+            {date_condition}
             GROUP BY EXTRACT(HOUR FROM created_at)
             ORDER BY hour
         """
-        hourly_result = await db.fetch(hourly_query, site_id)
+        hourly_result = await db.fetch(hourly_query, *base_params)
         hourly_activity = [dict(row) for row in hourly_result]
+        
+        # Determine data range label for response
+        if start_date and end_date:
+            if start_date == end_date:
+                data_range = f"Data for {start_date}"
+            else:
+                data_range = f"Data from {start_date} to {end_date}"
+        else:
+            data_range = "today"
         
         return {
             # Main metrics
@@ -329,7 +354,7 @@ async def get_realtime_analytics(site_id: str, db=Depends(get_db)):
             
             # Metadata
             "last_updated": datetime.utcnow().isoformat(),
-            "data_range": "today"
+            "data_range": data_range
         }
         
     except Exception as e:

@@ -1294,3 +1294,95 @@ body{
   font-size: 0.875rem;
   background: white;
 }
+
+/* Responsive Sidebar & Hamburger */
+/* Hide hamburger by default */
+.hamburger-btn {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  width: 36px;
+  height: 36px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-left: auto;
+  z-index: 1101;
+}
+.hamburger-btn .bar {
+  width: 24px;
+  height: 3px;
+  background: #222;
+  margin: 4px 0;
+  border-radius: 2px;
+  transition: 0.3s;
+}
+
+/* Sidebar responsive styles */
+@media (max-width: 900px) {
+  .sidebar {
+    position: fixed;
+    left: -260px;
+    top: 0;
+    width: 240px;
+    height: 100%;
+    background: #fff;
+    box-shadow: 2px 0 8px rgba(0,0,0,0.08);
+    z-index: 1100;
+    transition: left 0.3s;
+  }
+  .sidebar-header {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+}
+  .sidebar.open {
+    left: 0;
+  }
+  .main-content {
+    margin-left: 0 !important;
+  }
+  .hamburger-btn {
+    display: flex;
+  }
+  /* Overlay for sidebar */
+  #sidebarOverlay {
+    display: block;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.2);
+    z-index: 1099;
+  }
+}
+
+/* Hide overlay by default */
+#sidebarOverlay {
+  display: none;
+}
+
+.date-range-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.date-range-picker input[type="date"] {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.date-range-picker span {
+  color: #666;
+  font-weight: 500;
+}
+
+.date-range-display {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+}

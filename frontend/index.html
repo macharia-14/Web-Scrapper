@@ -24,6 +24,12 @@
             <span class="pulse-dot"></span>
             <span>Live</span>
           </div>
+          <!-- Hamburger Button -->
+          <button id="hamburgerBtn" class="hamburger-btn" aria-label="Open Menu">
+            <span class="bar"></span>
+            <span class="bar"></span>
+            <span class="bar"></span>
+          </button>
         </div>
         <ul class="nav-menu">
           <li>
@@ -70,11 +76,7 @@
                 <option value="Select a site..."></option>
               </select>
               <div class="time-range-selector">
-                <select id="topPagesFilter">
-                  <option value="today">Today</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
-                </select>
+                 <span class="date-range-display" id="currentDateRange">Today's Data</span>
               </div>
               <button id="refreshBtn" class="btn btn-primary">
                 <i class="fas fa-sync-alt"></i>Refresh
@@ -667,6 +669,39 @@
     </div>
 
     <div id="toastContainer" class="toast-container"></div>
+    <div id="sidebarOverlay"></div>
     <script src="/static/script.js"></script>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const sidebar = document.querySelector('.sidebar');
+      const hamburgerBtn = document.getElementById('hamburgerBtn');
+      const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+      function openSidebar() {
+        sidebar.classList.add('open');
+        sidebarOverlay.style.display = 'block';
+      }
+      function closeSidebar() {
+        sidebar.classList.remove('open');
+        sidebarOverlay.style.display = 'none';
+      }
+
+      hamburgerBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        openSidebar();
+      });
+
+      sidebarOverlay.addEventListener('click', closeSidebar);
+
+      // Optional: close sidebar on nav click (mobile)
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+          if (window.innerWidth <= 900) closeSidebar();
+        });
+      });
+    });
+</script>
+
   </body>
 </html>
