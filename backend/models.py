@@ -34,8 +34,8 @@ class SiteUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 class AlertRule(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    site_id: str
+    id: UUID = Field(default_factory=uuid.uuid4) # change to either UUID or str based on your database schema
+    site_id: UUID # change to either UUID or str based on your database schema
     name: str
     condition: str  # 'page_views_spike', 'new_referrer', 'error_rate', 'custom_event'
     threshold: Optional[float] = None
