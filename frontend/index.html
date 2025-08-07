@@ -71,12 +71,15 @@
         <div id="dashboard" class="page active">
           <div class="page-header">
             <h1>Dashboard Overview</h1>
+            <span id="currentDateRange" style="margin-left:1.5rem; font-size:1rem; color:#3b82f6;"></span>
             <div class="site-selector">
               <select id="siteSelect">
                 <option value="Select a site..."></option>
               </select>
               <div class="time-range-selector">
-                 <span class="date-range-display" id="currentDateRange">Today's Data</span>
+                <input type="date" id="dashboardStartDate" />
+                <input type="date" id="dashboardEndDate" />
+                <button id="applyDashboardDateRange">Apply</button>
               </div>
               <button id="refreshBtn" class="btn btn-primary">
                 <i class="fas fa-sync-alt"></i>Refresh

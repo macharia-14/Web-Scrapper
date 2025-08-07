@@ -757,22 +757,7 @@ document.getElementById('topPagesFilter')?.addEventListener('change', async (e) 
   });
 
   // ========== 8. Toast Function ==========
-  function showToast(message, type = "info") {
-    const container = document.getElementById("toastContainer");
-    if (!container) return;
-    
-    const toast = document.createElement("div");
-    toast.className = `toast ${type}`;
-    toast.innerHTML = `
-      <div class="toast-icon"><i class="fas fa-info-circle"></i></div>
-      <div class="toast-content">
-        <div class="toast-title">${type.charAt(0).toUpperCase() + type.slice(1)}</div>
-        <div class="toast-message">${message}</div>
-      </div>
-    `;
-    container.appendChild(toast);
-    setTimeout(() => toast.remove(), 4000);
-  }
+  
 
   // ========== 9. Initialize Dashboard ==========
   console.log('🚀 Initializing dashboard...');
@@ -1330,7 +1315,8 @@ function initializeDateRange() {
   const startDate = document.getElementById('dashboardStartDate');
   const endDate = document.getElementById('dashboardEndDate');
   const applyBtn = document.getElementById('applyDashboardDateRange');
-  
+  if (!startDate || !endDate || !applyBtn) return; 
+
   // Set default to today
   const today = new Date().toISOString().split('T')[0];
   startDate.value = today;
@@ -1399,3 +1385,47 @@ document.addEventListener('DOMContentLoaded', function() {
   // ... your existing code ...
   initializeDateRange();
 });
+
+function showLoading() {
+  let overlay = document.getElementById('loadingOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'loadingOverlay';
+    overlay.style.position = 'fixed';
+    overlay.style.top = 0;
+    overlay.style.left = 0;
+    overlay.style.width = '100vw';
+    overlay.style.height = '100vh';
+    overlay.style.background = 'rgba(255,255,255,0.6)';
+    overlay.style.display = 'flex';
+    overlay.style.alignItems = 'center';
+    overlay.style.justifyContent = 'center';
+    overlay.style.zIndex = 2000;
+    overlay.innerHTML = `<div style="font-size:2rem;color:#3b82f6;"><i class="fas fa-spinner fa-spin"></i> Loading...</div>`;
+    document.body.appendChild(overlay);
+  } else {
+    overlay.style.display = 'flex';
+  }
+}
+
+function hideLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
+function showToast(message, type = "info") {
+    const container = document.getElementById("toastContainer");
+    if (!container) return;
+    
+    const toast = document.createElement("div");
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+      <div class="toast-icon"><i class="fas fa-info-circle"></i></div>
+      <div class="toast-content">
+        <div class="toast-title">${type.charAt(0).toUpperCase() + type.slice(1)}</div>
+        <div class="toast-message">${message}</div>
+      </div>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
