@@ -1,3 +1,4 @@
+# Web-Scrapper
 # Project Functionality Documentation: Web Scrapper V2
 
 ## Introduction
