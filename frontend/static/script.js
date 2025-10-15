@@ -1360,14 +1360,18 @@ function updateDashboardData(startDate, endDate) {
 async function fetchDashboardDataForDateRange(siteId, startDate, endDate) {
   try {
     showLoading();
-    
-    // You'll need to modify your backend API to accept date range parameters
-    const response = await fetch(`/api/analytics/${siteId}/dashboard?start_date=${startDate}&end_date=${endDate}`);
+
+    // The original URL `/api/analytics/.../dashboard` was causing a 404 Not Found error.
+    // 1. The `/api` prefix is inconsistent with other API calls in this file.
+    // 2. Other dashboard functions use the `/realtime` endpoint. This change aligns the URL.
+    // Note: Your backend must be able to handle `start_date` and `end_date` on this endpoint.
+    const response = await fetch(`/analytics/${siteId}/realtime?start_date=${startDate}&end_date=${endDate}`);
     const data = await response.json();
-    
+
     if (response.ok) {
-      // Update all dashboard elements with filtered data
-      updateDashboardElements(data);
+      // The function `updateDashboardElements` was not defined.
+      // `updateRealtimeStats` is the correct function to update the dashboard components.
+      updateRealtimeStats(data);
       showToast('Dashboard updated successfully', 'success');
     } else {
       throw new Error(data.detail || 'Failed to fetch data');

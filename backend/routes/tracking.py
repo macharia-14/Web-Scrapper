@@ -1,6 +1,7 @@
 import os
 import json
 from uuid import uuid4
+import logging
 from datetime import datetime
 import asyncpg
 import ipaddress
@@ -12,6 +13,9 @@ from fastapi import BackgroundTasks
 
 from backend.routes.alert import check_alerts
 
+# Configure basic logging for this module
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 router = APIRouter()
 
 # Initialize IPInfo client
@@ -21,6 +25,21 @@ def get_ipinfo_client():
     if ipinfo_token:
         return ipinfo.getHandler(ipinfo_token)
     return None
+
+def get_client_ip(request: Request) -> str:
+    """
+    Retrieves the client's real IP address from the request.
+    It checks for 'x-forwarded-for' and 'x-real-ip' headers, which are common
+    in proxy/load balancer setups (like ngrok), and falls back to the direct client host.
+    """
+    # 'x-forwarded-for' can contain a comma-separated list of IPs. The first one is the client.
+    if x_forwarded_for := request.headers.get("x-forwarded-for"):
+        return x_forwarded_for.split(",")[0].strip()
+    # 'x-real-ip' is another common header for the original IP.
+    if x_real_ip := request.headers.get("x-real-ip"):
+        return x_real_ip.strip()
+    # Fallback to the direct connection IP.
+    return request.client.host
 
 @router.get("/tracking-script/{site_id}")
 async def get_tracking_script(site_id: str, request: Request):
@@ -251,7 +270,7 @@ async def get_location_data(ip_address: str):
 
         
     except Exception as e:
-        print(f"IPInfo lookup failed: {e}")
+        logging.error(f"IPInfo lookup failed for IP {ip_address}: {e}")
         return None
 
 @router.post("/api/track")
@@ -259,21 +278,14 @@ async def track_event(request: Request, background_tasks: BackgroundTasks):
     try:
         data = await request.json()
 
-        client_ip = request.headers.get("x-forwarded-for", request.client.host)
-        # print("📥 Incoming tracking data:")
-        print(json.dumps(data, indent=2))
-        # Get client IP
-        
-        # print(f"📍 Client IP: {client_ip}")
-        if "x-forwarded-for" in request.headers:
-            client_ip = request.headers["x-forwarded-for"].split(",")[0].strip()
-        elif "x-real-ip" in request.headers:
-            client_ip = request.headers["x-real-ip"]
+        logging.info("Incoming tracking data for site %s", data.get('site_id'))
+
+        client_ip = get_client_ip(request)
         
         # Get location data using IPInfo
         location_data = await get_location_data(client_ip)
-        print(f"IPInfo data for {client_ip}: {json.dumps(location_data, indent=2)}")
-
+        if location_data:
+            logging.info("IPInfo data for %s retrieved successfully.", client_ip)
 
         # Extract location data with defaults
         ip_city = None
@@ -337,9 +349,6 @@ async def track_event(request: Request, background_tasks: BackgroundTasks):
             ip_longitude
         )
 
-        print("Values to insert:", values)
-
-
         async with request.app.state.db.acquire() as conn:
             await conn.execute(query, *values)
 
@@ -351,4 +360,5 @@ async def track_event(request: Request, background_tasks: BackgroundTasks):
         return {"status": "ok"}
 
     except Exception as e:
+        logging.error("Tracking error: %s", e, exc_info=True)
         raise HTTPException(status_code=400, detail=f"Tracking error: {str(e)}")
