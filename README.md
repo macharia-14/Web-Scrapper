@@ -67,6 +67,6 @@ The project also includes tools for real-time analytics, alerting, and data expo
 
 -  Enhance frontend with charts, filters, and real-time graphs
 
- Develop lead-generation and CRM integration
+-  Develop lead-generation and CRM integration
 
- Add caching and rate-limiting for better performance
+-  Add caching and rate-limiting for better performance
