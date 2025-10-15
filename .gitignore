@@ -1,2 +1,5 @@
 .env
 Functionality_Doc.md
+# Compiled Python
+__pycache__/
+*.py[cod]
