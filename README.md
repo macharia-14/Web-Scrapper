@@ -1,29 +1,29 @@
-🌐 Web-Scrapper
-📊 Overview
+ Web-Scrapper
+ Overview
 
 The Web-Scrapper is a lightweight web-tracking and analytics system that helps website owners understand how users interact with their sites.
 It combines a FastAPI backend with a simple JavaScript tracking script to collect data such as page views, clicks, scrolls, form submissions, performance metrics, and more.
 The project also includes tools for real-time analytics, alerting, and data export — all powered by PostgreSQL.
 
 
-🚀 Key Features
+ Key Features
 
-🧩 User Behavior Tracking – Captures clicks, scrolls, form events, errors, and performance data in real time.
+ User Behavior Tracking – Captures clicks, scrolls, form events, errors, and performance data in real time.
 
-🌍 IP Geolocation – Enriches tracked events using IPInfo to provide geographic insights.
+ IP Geolocation – Enriches tracked events using IPInfo to provide geographic insights.
 
-📈 Analytics Dashboard – Displays metrics such as pageviews, active users, top pages, and performance stats.
+ Analytics Dashboard – Displays metrics such as pageviews, active users, top pages, and performance stats.
 
-⚠️ Alerts – Create rules that trigger when metrics exceed thresholds (e.g., traffic spikes or errors).
+ Alerts – Create rules that trigger when metrics exceed thresholds (e.g., traffic spikes or errors).
 
-🧾 Data Export – Download analytics as CSV or PDF reports.
+ Data Export – Download analytics as CSV or PDF reports.
 
-🖥️ Multi-Site Management – Add, manage, and monitor multiple websites from one dashboard.
+ Multi-Site Management – Add, manage, and monitor multiple websites from one dashboard.
 
-💡 Real-Time Insights – See live data for active sessions, clicks, and page activity.
+ Real-Time Insights – See live data for active sessions, clicks, and page activity.
 
 
-🧠 System Components
+ System Components
 -  Component	Description	Status
 -  Backend (FastAPI)	Core API for tracking, analytics, alerts, and export.	✅ 95%
 -  Frontend (HTML + JS)	Static dashboard for sites, analytics, alerts, and exports.	🧩 60%
@@ -32,7 +32,7 @@ The project also includes tools for real-time analytics, alerting, and data expo
 -  Leads Generation	Planned feature for identifying and storing potential leads.	🚧 10%
 
 
-⚙️ Tech Stack
+ Tech Stack
 
 -  Backend: FastAPI (Python)
 
@@ -44,7 +44,7 @@ The project also includes tools for real-time analytics, alerting, and data expo
 
 -  Geolocation: IPInfo API
 
-🧾 How It Works
+ How It Works
 
 1. Tracking:
    Embed a small JavaScript snippet on your website.
@@ -57,7 +57,7 @@ The project also includes tools for real-time analytics, alerting, and data expo
    Access the analytics dashboard to view reports or download them as CSV/PDF.
 
 
-🔮 Roadmap
+ Roadmap
 
 -  Implement full alert evaluation and notification delivery
 
